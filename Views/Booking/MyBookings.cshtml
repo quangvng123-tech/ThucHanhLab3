@@ -1,0 +1,70 @@
+﻿@model IEnumerable<TourManagementWeb.Models.Entities.Booking>
+@{
+    ViewData["Title"] = "Lịch sử Đặt Tour của tôi";
+}
+<div class="container py-5">
+    <h3 class="fw-bold mb-4"><i class="fa-solid fa-suitcase-rolling text-primary me-2"></i>Đơn Đặt Chỗ Của Tôi</h3>
+
+    @if (!Model.Any())
+    {
+        <div class="card border-0 shadow-sm p-5 text-center rounded-4">
+            <p class="text-muted mb-3">Bạn chưa có đơn đặt tour nào.</p>
+            <div><a asp-controller="Home" asp-action="Index" class="btn btn-primary rounded-pill px-4">Khám phá Tour ngay</a></div>
+        </div>
+    }
+    else
+    {
+        foreach (var b in Model)
+        {
+            <div class="card border-0 shadow-sm rounded-4 mb-3">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                        <div>
+                            <span class="badge bg-dark me-2">@b.BookingCode</span>
+                            <strong class="fs-5">@b.Departure?.Tour?.TourName</strong>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <span class="badge @(b.Status == "CONFIRMED" || b.Status == "COMPLETED" ? "bg-success" : b.Status == "CANCELLED" ? "bg-danger" : "bg-warning text-dark") px-3 py-2">
+                                Trạng thái: @b.Status
+                            </span>
+                            <span class="badge @(b.PaymentStatus == "PAID" ? "bg-primary" : "bg-secondary") px-3 py-2">
+                                Thanh toán: @b.PaymentStatus
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="row small text-secondary">
+                        <div class="col-md-4">
+                            <div>📅 Ngày đi: <strong>@b.Departure?.DepartureDate.ToString("dd/MM/yyyy")</strong></div>
+                            <div>👥 Số khách: <strong>@b.NumAdults người lớn, @b.NumChildren trẻ em</strong></div>
+                        </div>
+                        <div class="col-md-4">
+                            <div>Tạm tính: @b.TotalAmount.ToString("N0") đ</div>
+                            <div>Giảm giá: -@b.DiscountAmount.ToString("N0") đ</div>
+                            <div class="fs-6 text-danger fw-bold">Tổng thanh toán: @b.FinalAmount.ToString("N0") đ</div>
+                        </div>
+                        <div class="col-md-4 text-md-end mt-3 mt-md-0">
+                            @if (b.Status != "CANCELLED" && b.PaymentStatus == "UNPAID")
+                            {
+                                <form asp-action="PayOnline" method="post" class="d-inline">
+                                    <input type="hidden" name="bookingId" value="@b.BookingId" />
+                                    <input type="hidden" name="method" value="VNPAY" />
+                                    <button type="submit" class="btn btn-primary btn-sm fw-bold rounded-pill px-3">
+                                        <i class="fa-solid fa-credit-card me-1"></i>Thanh toán VNPay
+                                    </button>
+                                </form>
+                            }
+                            @if (b.Status == "PENDING" || b.Status == "CONFIRMED")
+                            {
+                                <form asp-action="Cancel" method="post" class="d-inline ms-1" onsubmit="return confirm('Bạn chắc chắn muốn hủy đơn này?');">
+                                    <input type="hidden" name="bookingId" value="@b.BookingId" />
+                                    <button type="submit" class="btn btn-outline-danger btn-sm rounded-pill px-3">Hủy đơn</button>
+                                </form>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>

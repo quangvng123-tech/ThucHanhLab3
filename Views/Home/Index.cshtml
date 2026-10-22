@@ -1,0 +1,186 @@
+﻿@using System.Globalization
+@model IEnumerable<TourManagementWeb.Models.Entities.VTourList>
+@{
+    ViewData["Title"] = "Khám phá Tour Du lịch Việt Nam";
+    var provinces = ViewBag.Provinces as List<TourManagementWeb.Models.Entities.Province>;
+    var tourNames = ViewBag.AllTourNames as List<string>;
+    var primaryImages = ViewBag.PrimaryImages as Dictionary<decimal, string>;
+    string todayStr = DateTime.Now.ToString("yyyy-MM-dd");
+
+    string FormatMoney(decimal? amount) => amount.HasValue
+        ? amount.Value.ToString("#,##0", CultureInfo.InvariantCulture) + " đ"
+        : "Liên hệ";
+
+    string GetTourImage(decimal tourId, string code)
+    {
+        if (primaryImages != null && primaryImages.TryGetValue(tourId, out var dbUrl) && !string.IsNullOrWhiteSpace(dbUrl) && dbUrl.StartsWith("http"))
+        {
+            return dbUrl;
+        }
+        return code switch
+        {
+            "HLG-3N2D" => "https://images.unsplash.com/photo-1528127269322-539801943592?w=800&q=80",
+            "DNG-4N3D" => "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800&q=80",
+            "HUE-3N2D" => "https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=800&q=80",
+            "NTR-3N2D" => "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
+            "DLT-3N2D" => "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800&q=80",
+            _ => "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&q=80"
+        };
+    }
+}
+
+<!-- Hero Banner -->
+<section class="position-relative text-white py-5" style="background: linear-gradient(rgba(15,23,42,0.65), rgba(15,23,42,0.75)), url('https://images.unsplash.com/photo-1528127269322-539801943592?w=1600&q=80') center/cover no-repeat; min-height: 400px;">
+    <div class="container py-4 text-center">
+        <span class="badge bg-info text-dark fw-bold px-3 py-2 rounded-pill mb-3">TRẢI NGHIỆM VIỆT NAM TRỌN VẸN</span>
+        <h1 class="display-5 fw-bolder mb-3">Hành Trình Tuyệt Vời Bắt Đầu Từ Đây</h1>
+        <p class="lead text-light opacity-75 mx-auto" style="max-width: 680px;">
+            Tìm kiếm, so sánh và đặt chỗ trực tuyến hàng chục hành trình khám phá Bắc - Trung - Nam với cam kết giữ chỗ tức thì.
+        </p>
+    </div>
+</section>
+
+<div class="container" style="margin-top: -65px; position: relative; z-index: 20;">
+    <!-- Hộp tìm kiếm nổi (UC07) -->
+    <div class="card border-0 shadow-lg rounded-4 p-4 mb-5 bg-white">
+        <form method="get" asp-controller="Home" asp-action="Index" class="row g-3 align-items-end">
+            <!-- 1. Từ khóa -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold small text-secondary">
+                    <i class="fa-solid fa-magnifying-glass me-1 text-primary"></i>Từ khóa tìm kiếm
+                </label>
+                <input type="text" name="keyword" list="keywordList" value="@ViewBag.Keyword" class="form-control form-control-lg fs-6" placeholder="Chọn hoặc nhập tên tour" autocomplete="off" />
+                <datalist id="keywordList">
+                    @if (tourNames != null)
+                    {
+                        foreach (var name in tourNames)
+                        {
+                            <option value="@name"></option>
+                        }
+                    }
+                </datalist>
+            </div>
+
+            <!-- 2. Địa phương -->
+            <div class="col-md-3">
+                <label class="form-label fw-bold small text-secondary">
+                    <i class="fa-solid fa-location-dot me-1 text-danger"></i>Địa phương đến / đi
+                </label>
+                <select name="provinceId" class="form-select form-select-lg fs-6">
+                    <option value="">Tất cả tỉnh/thành</option>
+                    @if (provinces != null)
+                    {
+                        foreach (var p in provinces)
+                        {
+                            <option value="@p.ProvinceId" selected="@(ViewBag.SelectedProvince == p.ProvinceId)">@p.ProvinceName</option>
+                        }
+                    }
+                </select>
+            </div>
+
+            <!-- 3. Giá tối đa -->
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-secondary">
+                    <i class="fa-solid fa-coins me-1 text-warning"></i>Giá tối đa
+                </label>
+                <select name="maxPrice" class="form-select form-select-lg fs-6">
+                    <option value="">Tất cả mức giá</option>
+                    <option value="2000000" selected="@(ViewBag.MaxPrice == 2000000m)">2,000,000 đ</option>
+                    <option value="3500000" selected="@(ViewBag.MaxPrice == 3500000m)">3,500,000 đ</option>
+                    <option value="5000000" selected="@(ViewBag.MaxPrice == 5000000m)">5,000,000 đ</option>
+                    <option value="8000000" selected="@(ViewBag.MaxPrice == 8000000m)">8,000,000 đ</option>
+                    <option value="10000000" selected="@(ViewBag.MaxPrice == 10000000m)">10,000,000 đ</option>
+                </select>
+            </div>
+
+            <!-- 4. Ngày khởi hành: Khóa các ngày trước hôm nay -->
+            <div class="col-md-2">
+                <label class="form-label fw-bold small text-secondary">
+                    <i class="fa-regular fa-calendar-days me-1 text-success"></i>Ngày khởi hành
+                </label>
+                <input type="date" name="departureDate" min="@todayStr" value="@ViewBag.DepartureDate" class="form-control form-control-lg fs-6" />
+            </div>
+
+            <!-- 5. Nút Tìm Tour -->
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary btn-lg fw-bold fs-6">
+                    <i class="fa-solid fa-filter me-1"></i>Tìm Tour
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tiêu đề danh sách -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h3 class="fw-bold mb-1">Tour Đang Mở Bán Nổi Bật</h3>
+            <p class="text-muted small mb-0">Hiển thị @Model.Count() chương trình tour phù hợp</p>
+        </div>
+        @if (ViewBag.SelectedProvince != null || ViewBag.MaxPrice != null || ViewBag.DepartureDate != null || !string.IsNullOrEmpty(ViewBag.Keyword))
+        {
+            <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                <i class="fa-solid fa-rotate-left me-1"></i>Xóa bộ lọc
+            </a>
+        }
+    </div>
+
+    <!-- Lưới Card Tour -->
+    <div class="row g-4">
+        @if (!Model.Any())
+        {
+            <div class="col-12">
+                <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+                    <i class="fa-solid fa-magnifying-glass-location fs-1 text-muted mb-3"></i>
+                    <h5 class="fw-bold">Không tìm thấy chương trình tour phù hợp</h5>
+                    <p class="text-muted small mb-3">Vui lòng thử chọn lại mức giá, địa phương hoặc ngày khởi hành khác.</p>
+                    <div>
+                        <a asp-action="Index" class="btn btn-primary rounded-pill px-4">Xem tất cả Tour</a>
+                    </div>
+                </div>
+            </div>
+        }
+        else
+        {
+            foreach (var item in Model)
+            {
+                <div class="col-lg-4 col-md-6">
+                    <div class="tour-card h-100 d-flex flex-column">
+                        <a asp-action="Details" asp-route-id="@item.TourId" class="tour-img-wrapper d-block">
+                            <img src="@GetTourImage(item.TourId, item.TourCode)" alt="@item.TourName" />
+                            <span class="badge-category"><i class="fa-solid fa-tag me-1 text-info"></i>@item.CategoryName</span>
+                            <span class="badge-rating">★ @item.AvgRating <span class="text-muted fw-normal">(@item.ReviewCount)</span></span>
+                        </a>
+                        <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                            <div class="d-flex justify-content-between text-muted small mb-2">
+                                <span><i class="fa-solid fa-barcode me-1"></i>@item.TourCode</span>
+                                <span><i class="fa-regular fa-clock me-1 text-primary"></i>@item.DurationDays ngày @item.DurationNights đêm</span>
+                            </div>
+                            <h5 class="fw-bold text-dark mb-3">
+                                <a asp-action="Details" asp-route-id="@item.TourId" class="text-decoration-none text-dark">
+                                    @item.TourName
+                                </a>
+                            </h5>
+                            <div class="small text-secondary mb-3">
+                                <div class="mb-1"><i class="fa-solid fa-plane-departure text-primary me-2"></i>Khởi hành từ: <strong>@item.DepartureFrom</strong></div>
+                                <div class="mb-1"><i class="fa-solid fa-bus text-success me-2"></i>Phương tiện: <strong>@item.Transport</strong></div>
+                                <div><i class="fa-regular fa-calendar-check text-warning me-2"></i>Đợt gần nhất: <strong>@(item.NextDeparture.HasValue? item.NextDeparture.Value.ToString("dd/MM/yyyy") : "Liên hệ")</strong></div>
+                            </div>
+
+                            <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="text-muted small d-block">Giá người lớn từ</span>
+                                    <span class="fs-5 fw-bolder text-danger">
+                                        @FormatMoney(item.MinPrice)
+                                    </span>
+                                </div>
+                                <a asp-action="Details" asp-route-id="@item.TourId" class="btn btn-primary rounded-pill px-3 fw-semibold btn-sm">
+                                    Chi tiết <i class="fa-solid fa-arrow-right ms-1"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>

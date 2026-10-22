@@ -1,0 +1,81 @@
+﻿@using System.Globalization
+@model IEnumerable<TourManagementWeb.Models.Entities.Tour>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Quản Lý Chương Trình Tour & Hình Ảnh";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <p class="text-muted mb-0">Tổng cộng: <strong>@Model.Count()</strong> chương trình tour</p>
+    <a asp-action="CreateTour" class="btn btn-primary fw-bold rounded-pill px-4">
+        <i class="fa-solid fa-plus me-1"></i> Thêm Tour Mới
+    </a>
+</div>
+
+<div class="card stat-card bg-white">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Ảnh</th>
+                    <th>Mã Tour</th>
+                    <th>Tên Tour</th>
+                    <th>Loại Tour</th>
+                    <th>Khởi hành</th>
+                    <th>Sao Mặc Định / Thực Tế</th>
+                    <th>Số ảnh</th>
+                    <th>Trạng thái</th>
+                    <th class="text-end">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var t in Model)
+                {
+                    var approvedReviews = t.Reviews.Where(r => r.Status == "APPROVED").ToList();
+                    double displayStars = approvedReviews.Any()
+                    ? Math.Round(approvedReviews.Average(r => (double)r.Rating), 1)
+                    : (double)t.DefaultRating;
+
+                    string thumb = t.TourImages.FirstOrDefault()?.ImageUrl ?? "https://images.unsplash.com/photo-1528127269322-539801943592?w=400&q=80";
+                    <tr>
+                        <td>
+                            <img src="@thumb" style="width: 65px; height: 45px; object-fit: cover;" class="rounded" />
+                        </td>
+                        <td class="fw-bold">@t.TourCode</td>
+                        <td>
+                            <a asp-controller="Home" asp-action="Details" asp-route-id="@t.TourId" target="_blank" class="fw-bold text-primary text-decoration-none">
+                                @t.TourName
+                            </a>
+                            <div class="small text-muted">@t.DurationDays ngày @t.DurationNights đêm | @t.Transport</div>
+                        </td>
+                        <td>@t.Category?.CategoryName</td>
+                        <td>@t.DepartureProvince?.ProvinceName</td>
+                        <td>
+                            <span class="text-warning fw-bold">★ @displayStars</span>
+                            <small class="text-muted d-block">
+                                @(approvedReviews.Any() ? $"({approvedReviews.Count} đánh giá duyệt)" : $"(Mặc định: {t.DefaultRating}★)")
+                            </small>
+                        </td>
+                        <td><span class="badge bg-info text-dark">@t.TourImages.Count ảnh</span></td>
+                        <td>
+                            <span class="badge @(t.Status == "PUBLISHED" ? "bg-success" : t.Status == "DRAFT" ? "bg-warning text-dark" : "bg-secondary")">
+                                @t.Status
+                            </span>
+                        </td>
+                        <td class="text-end">
+                            <a asp-action="EditTour" asp-route-id="@t.TourId" class="btn btn-sm btn-outline-primary me-1">
+                                <i class="fa-solid fa-pen-to-square"></i> Sửa
+                            </a>
+                            <form asp-action="DeleteTour" method="post" class="d-inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa tour này?');">
+                                <input type="hidden" name="id" value="@t.TourId" />
+                                <button type="submit" class="btn btn-sm btn-outline-danger">
+                                    <i class="fa-solid fa-trash"></i> Xóa
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

@@ -1,0 +1,56 @@
+﻿@model TourManagementWeb.Models.Entities.Contact
+@{
+    ViewData["Title"] = "Liên hệ tư vấn Tour";
+    var tours = ViewBag.Tours as List<TourManagementWeb.Models.Entities.Tour>;
+}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow rounded-4 p-4">
+                <h3 class="fw-bold text-primary mb-2"><i class="fa-solid fa-paper-plane me-2"></i>Gửi Yêu Cầu Tư Vấn</h3>
+                <p class="text-muted small mb-4">Bạn cần thiết kế tour riêng theo đoàn hoặc hỏi chi tiết lịch trình? Hãy để lại lời nhắn!</p>
+
+                <form asp-action="Contact" method="post">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Họ và tên *</label>
+                            <input asp-for="FullName" class="form-control" required placeholder="Nhập họ tên của bạn" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Email *</label>
+                            <input asp-for="Email" type="email" class="form-control" required placeholder="email@domain.com" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Số điện thoại</label>
+                            <input asp-for="Phone" class="form-control" placeholder="09xxxxxxxx" />
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold">Quan tâm đến Tour (Tùy chọn)</label>
+                            <select asp-for="TourId" class="form-select">
+                                <option value="">-- Chọn tour cần hỏi --</option>
+                                @if (tours != null)
+                                {
+                                    foreach (var t in tours)
+                                    {
+                                        <option value="@t.TourId">@t.TourName (@t.TourCode)</option>
+                                    }
+                                }
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Tiêu đề *</label>
+                            <input asp-for="Subject" class="form-control" required placeholder="VD: Hỏi lịch trình & giá đoàn 20 khách" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Nội dung chi tiết *</label>
+                            <textarea asp-for="Message" rows="4" class="form-control" required placeholder="Nhập câu hỏi của bạn..."></textarea>
+                        </div>
+                        <div class="col-12 text-end">
+                            <button type="submit" class="btn btn-primary px-5 fw-bold rounded-pill">Gửi Liên Hệ</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,105 @@
+﻿@model TourManagementWeb.Models.Entities.TourDeparture
+@{
+    ViewData["Title"] = "Đặt chỗ trực tuyến";
+    var promos = ViewBag.Promotions as List<TourManagementWeb.Models.Entities.Promotion>;
+}
+<div class="container py-5">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm rounded-4 p-4">
+                <h4 class="fw-bold text-primary mb-3"><i class="fa-solid fa-file-signature me-2"></i>Thông Tin Đặt Chỗ & Hành Khách</h4>
+                <form asp-action="Create" method="post">
+                    <input type="hidden" name="departureId" value="@Model.DepartureId" />
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Số người lớn (>=1) *</label>
+                            <input type="number" id="numAdults" name="numAdults" value="1" min="1" max="@(Model.MaxSeats - Model.BookedSeats)" class="form-control" required onchange="calcTotal()" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Số trẻ em</label>
+                            <input type="number" id="numChildren" name="numChildren" value="0" min="0" class="form-control" onchange="calcTotal()" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Mã khuyến mãi (UC11)</label>
+                            <input type="text" name="promoCode" class="form-control text-uppercase" placeholder="VD: WELCOME10" />
+                        </div>
+                    </div>
+
+                    <h6 class="fw-bold text-secondary mb-2">Danh sách hành khách đi cùng (UC10):</h6>
+                    <div id="paxContainer" class="mb-3">
+                        <div class="row g-2 mb-2">
+                            <div class="col-md-6">
+                                <input type="text" name="paxNames" class="form-control" placeholder="Họ tên hành khách 1 *" required />
+                            </div>
+                            <div class="col-md-3">
+                                <select name="paxTypes" class="form-select">
+                                    <option value="ADULT">Người lớn</option>
+                                    <option value="CHILD">Trẻ em</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <select name="paxGenders" class="form-select">
+                                    <option value="MALE">Nam</option>
+                                    <option value="FEMALE">Nữ</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="addPaxRow()">
+                        + Thêm dòng hành khách
+                    </button>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Ghi chú thêm</label>
+                        <textarea name="note" rows="2" class="form-control" placeholder="Yêu cầu ăn chay, đón tại sân bay..."></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning btn-lg fw-bold w-100">
+                        Xác Nhận Đặt Tour (Giữ chỗ ngay)
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                <h5 class="fw-bold mb-3">@Model.Tour.TourName</h5>
+                <p class="small text-muted mb-2">Mã đợt: #@Model.DepartureId | Khởi hành: <strong>@Model.DepartureDate.ToString("dd/MM/yyyy")</strong></p>
+                <p class="small text-muted mb-2">Điểm hẹn: <strong>@Model.MeetingPoint</strong></p>
+                <p class="small text-muted mb-3">Số chỗ còn nhận: <span class="badge bg-success">@(Model.MaxSeats - Model.BookedSeats) chỗ</span></p>
+                <hr />
+                <div class="d-flex justify-content-between mb-2">
+                    <span>Giá Người lớn:</span>
+                    <strong>@Model.PriceAdult.ToString("N0") đ</strong>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span>Giá Trẻ em:</span>
+                    <strong>@Model.PriceChild.ToString("N0") đ</strong>
+                </div>
+                @if (promos != null && promos.Any())
+                {
+                    <div class="bg-light p-3 rounded-3 small">
+                        <strong class="d-block mb-1 text-primary"><i class="fa-solid fa-ticket me-1"></i>Mã giảm giá đang mở:</strong>
+                        @foreach (var p in promos)
+                        {
+                            <div><code>@p.PromoCode</code>: @p.Description</div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function addPaxRow() {
+            const html = `<div class="row g-2 mb-2">
+                <div class="col-md-6"><input type="text" name="paxNames" class="form-control" placeholder="Họ tên hành khách" required /></div>
+                <div class="col-md-3"><select name="paxTypes" class="form-select"><option value="ADULT">Người lớn</option><option value="CHILD">Trẻ em</option></select></div>
+                <div class="col-md-3"><select name="paxGenders" class="form-select"><option value="MALE">Nam</option><option value="FEMALE">Nữ</option></select></div>
+            </div>`;
+            document.getElementById('paxContainer').insertAdjacentHTML('beforeend', html);
+        }
+    </script>
+}

@@ -1,0 +1,159 @@
+﻿@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Thêm Chương Trình Tour Mới";
+    var categories = ViewBag.Categories as List<TourManagementWeb.Models.Entities.TourCategory>;
+    var provinces = ViewBag.Provinces as List<TourManagementWeb.Models.Entities.Province>;
+    string todayStr = DateTime.Now.ToString("yyyy-MM-dd");
+}
+
+<div class="card stat-card bg-white p-4">
+    <form asp-action="CreateTour" method="post">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Mã Tour *</label>
+                <input type="text" name="tourCode" class="form-control text-uppercase" required placeholder="PQC-3N2D" />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Tên Chương Trình Tour *</label>
+                <input type="text" name="tourName" class="form-control" required placeholder="Nhập tên tour" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Số sao mặc định (Khi chưa có đánh giá)</label>
+                <select name="defaultRating" class="form-select fw-bold text-warning">
+                    <option value="5" selected>★★★★★ (5 Sao)</option>
+                    <option value="4">★★★★☆ (4 Sao)</option>
+                    <option value="3">★★★☆☆ (3 Sao)</option>
+                    <option value="2">★★☆☆☆ (2 Sao)</option>
+                    <option value="1">★☆☆☆☆ (1 Sao)</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Loại Tour *</label>
+                <select name="categoryId" class="form-select" required>
+                    @if (categories != null)
+                    {
+                        foreach (var c in categories)
+                        {
+                            <option value="@c.CategoryId">@c.CategoryName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Nơi khởi hành *</label>
+                <select name="departureProvinceId" class="form-select" required>
+                    @if (provinces != null)
+                    {
+                        foreach (var p in provinces)
+                        {
+                            <option value="@p.ProvinceId">@p.ProvinceName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Số ngày *</label>
+                <input type="number" name="durationDays" value="3" min="1" class="form-control" required />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Số đêm *</label>
+                <input type="number" name="durationNights" value="2" min="0" class="form-control" required />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Phương tiện *</label>
+                <select name="transport" class="form-select">
+                    <option value="BUS">BUS</option>
+                    <option value="FLIGHT">FLIGHT</option>
+                    <option value="TRAIN">TRAIN</option>
+                    <option value="BOAT">BOAT</option>
+                </select>
+            </div>
+
+            <div class="col-md-9">
+                <label class="form-label fw-bold">Tóm tắt ngắn</label>
+                <input type="text" name="summary" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Trạng thái đăng tải</label>
+                <select name="status" class="form-select">
+                    <option value="PUBLISHED" selected>PUBLISHED (Mở bán)</option>
+                    <option value="DRAFT">DRAFT (Bản nháp)</option>
+                    <option value="HIDDEN">HIDDEN (Tạm ẩn)</option>
+                </select>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-bold">Mô tả chi tiết Tour</label>
+                <textarea name="description" rows="3" class="form-control"></textarea>
+            </div>
+
+            <!-- Khởi tạo đợt khởi hành đầu tiên -->
+            <div class="col-12 mt-4">
+                <h6 class="fw-bold text-primary border-bottom pb-2">📅 Thiết Lập Đợt Khởi Hành & Giá Mở Bán Đầu Tiên</h6>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Ngày khởi hành</label>
+                <input type="date" name="departureDate" min="@todayStr" value="@DateTime.Now.AddDays(7).ToString("yyyy-MM-dd")" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Giá Người lớn (VNĐ)</label>
+                <input type="number" name="priceAdult" value="3500000" step="100000" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Giá Trẻ em (VNĐ)</label>
+                <input type="number" name="priceChild" value="2500000" step="100000" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Số chỗ tối đa</label>
+                <input type="number" name="maxSeats" value="30" min="1" class="form-control" required />
+            </div>
+
+            <!-- Quản lý nhiều hình ảnh -->
+            <div class="col-12 mt-4">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+                    <h6 class="fw-bold text-primary mb-0">🖼️ Danh Sách Hình Ảnh Của Tour (Có thể thêm nhiều ảnh)</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addImgRow()">
+                        <i class="fa-solid fa-plus me-1"></i> Thêm ảnh khác
+                    </button>
+                </div>
+            </div>
+            <div class="col-12" id="imgListContainer">
+                <div class="row g-2 mb-2">
+                    <div class="col-md-7">
+                        <input type="text" name="imageUrls" class="form-control" placeholder="Dán đường dẫn URL hình ảnh 1 (Ảnh chính) *" required />
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" name="imageCaptions" class="form-control" placeholder="Chú thích ảnh" />
+                    </div>
+                </div>
+                <div class="row g-2 mb-2">
+                    <div class="col-md-7">
+                        <input type="text" name="imageUrls" class="form-control" placeholder="Dán đường dẫn URL hình ảnh 2" />
+                    </div>
+                    <div class="col-md-4">
+                        <input type="text" name="imageCaptions" class="form-control" placeholder="Chú thích ảnh" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 text-end mt-4">
+                <a asp-action="Tours" class="btn btn-secondary me-2">Hủy</a>
+                <button type="submit" class="btn btn-primary fw-bold px-5">Lưu Chương Trình Tour</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        function addImgRow() {
+            const html = `<div class="row g-2 mb-2">
+                <div class="col-md-7"><input type="text" name="imageUrls" class="form-control" placeholder="Dán đường dẫn URL hình ảnh tiếp theo" /></div>
+                <div class="col-md-4"><input type="text" name="imageCaptions" class="form-control" placeholder="Chú thích ảnh" /></div>
+                <div class="col-md-1"><button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.row').remove()"><i class="fa-solid fa-xmark"></i></button></div>
+            </div>`;
+            document.getElementById('imgListContainer').insertAdjacentHTML('beforeend', html);
+        }
+    </script>
+}

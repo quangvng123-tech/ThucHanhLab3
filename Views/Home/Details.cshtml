@@ -1,0 +1,277 @@
+﻿@using System.Globalization
+@model TourManagementWeb.Models.Entities.Tour
+@{
+    ViewData["Title"] = Model.TourName;
+    string FormatMoney(decimal amount) => amount.ToString("#,##0", CultureInfo.InvariantCulture) + " đ";
+
+    var approvedReviews = Model.Reviews.Where(r => r.Status == "APPROVED").OrderByDescending(r => r.CreatedAt).ToList();
+    var myReview = ViewBag.MyReview as TourManagementWeb.Models.Entities.Review;
+
+    // Tính trung bình cộng số sao: Nếu có đánh giá đã duyệt thì lấy trung bình, nếu không có thì lấy DefaultRating của Admin
+    double avgStars = approvedReviews.Any()
+        ? Math.Round(approvedReviews.Average(r => (double)r.Rating), 1)
+        : (double)Model.DefaultRating;
+
+    var images = Model.TourImages.OrderByDescending(i => i.IsPrimary).ToList();
+}
+
+<style>
+    .star-rating-input {
+        display: inline-flex;
+        flex-direction: row-reverse;
+        gap: 6px;
+    }
+
+        .star-rating-input input {
+            display: none;
+        }
+
+        .star-rating-input label {
+            font-size: 2rem;
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+            .star-rating-input input:checked ~ label,
+            .star-rating-input label:hover,
+            .star-rating-input label:hover ~ label {
+                color: #f59e0b;
+            }
+</style>
+
+<div class="container py-4">
+    <a asp-action="Index" class="btn btn-outline-secondary btn-sm rounded-pill px-3 mb-3">← Quay lại danh sách tour</a>
+
+    <!-- Thông tin chung & Slide nhiều ảnh bấm qua lại (Bootstrap Carousel) -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            @if (images.Any())
+            {
+                <div id="tourCarousel" class="carousel slide shadow-sm rounded-4 overflow-hidden" data-bs-ride="carousel">
+                    <div class="carousel-indicators">
+                        @for (int i = 0; i < images.Count; i++)
+                        {
+                            <button type="button" data-bs-target="#tourCarousel" data-bs-slide-to="@i" class="@(i == 0 ? "active" : "")"></button>
+                        }
+                    </div>
+                    <div class="carousel-inner">
+                        @for (int i = 0; i < images.Count; i++)
+                        {
+                            <div class="carousel-item @(i == 0 ? "active" : "")">
+                                <img src="@images[i].ImageUrl" class="d-block w-100" style="height: 400px; object-fit: cover;" alt="@images[i].Caption" />
+                                @if (!string.IsNullOrEmpty(images[i].Caption))
+                                {
+                                    <div class="carousel-caption d-none d-md-block bg-dark bg-opacity-50 rounded-pill py-1 px-3 mb-2">
+                                        <small>@images[i].Caption (@(i + 1)/@images.Count)</small>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                    @if (images.Count > 1)
+                    {
+                        <button class="carousel-control-prev" type="button" data-bs-target="#tourCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon bg-dark rounded-circle p-3"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#tourCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon bg-dark rounded-circle p-3"></span>
+                        </button>
+                    }
+                </div>
+            }
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 h-100 p-4">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <span class="badge bg-primary px-3 py-2">@Model.Category?.CategoryName</span>
+                    <div class="fs-5 fw-bold text-warning">
+                        ★ @avgStars <small class="text-muted fs-6 fw-normal">(@(approvedReviews.Any() ? $"{approvedReviews.Count} đánh giá" : "Sao mặc định"))</small>
+                    </div>
+                </div>
+                <h3 class="fw-bolder text-dark mb-2">@Model.TourName</h3>
+                <p class="text-muted small mb-3">Mã Tour: <strong>@Model.TourCode</strong></p>
+                <p class="text-secondary">@Model.Summary</p>
+                <hr />
+                <div class="small mb-2"><strong>📍 Khởi hành từ:</strong> @Model.DepartureProvince?.ProvinceName</div>
+                <div class="small mb-2"><strong>⏱ Thời lượng:</strong> @Model.DurationDays ngày @Model.DurationNights đêm</div>
+                <div class="small mb-3"><strong>🚍 Phương tiện:</strong> @Model.Transport</div>
+                <p class="small text-muted mb-0">@Model.Description</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bảng lịch khởi hành & giá tour -->
+    <div class="card border-0 shadow-sm rounded-4 mb-4 overflow-hidden">
+        <div class="card-header bg-primary text-white fw-bold py-3">
+            📅 LỊCH KHỞI HÀNH & GIÁ TOUR
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Ngày đi</th>
+                        <th>Ngày về</th>
+                        <th>Điểm tập trung</th>
+                        <th>Giá Người lớn</th>
+                        <th>Giá Trẻ em</th>
+                        <th>Chỗ trống</th>
+                        <th>Trạng thái</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var dep in Model.TourDepartures.OrderBy(d => d.DepartureDate))
+                    {
+                        int availableSeats = dep.MaxSeats - dep.BookedSeats;
+                        <tr>
+                            <td class="fw-bold">@dep.DepartureDate.ToString("dd/MM/yyyy")</td>
+                            <td>@dep.ReturnDate.ToString("dd/MM/yyyy")</td>
+                            <td>@dep.MeetingPoint</td>
+                            <td class="text-danger fw-bold">@FormatMoney(dep.PriceAdult)</td>
+                            <td class="fw-semibold">@FormatMoney(dep.PriceChild)</td>
+                            <td><span class="badge bg-secondary">@availableSeats / @dep.MaxSeats</span></td>
+                            <td><span class="badge @(dep.Status == "OPEN" ? "bg-success" : "bg-secondary")">@dep.Status</span></td>
+                            <td class="text-end">
+                                @if (dep.Status == "OPEN" && availableSeats > 0)
+                                {
+                                    <a asp-controller="Booking" asp-action="Create" asp-route-departureId="@dep.DepartureId"
+                                       class="btn btn-sm btn-warning fw-bold rounded-pill px-3">Đặt ngay</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Lịch trình từng ngày -->
+    @if (Model.TourItineraries.Any())
+    {
+        <h4 class="fw-bold mb-3">🗺️ Lịch Trình Chi Tiết</h4>
+        <div class="accordion mb-5 shadow-sm rounded-4 overflow-hidden" id="itineraryAccordion">
+            @foreach (var iti in Model.TourItineraries.OrderBy(i => i.DayNo))
+            {
+                <div class="accordion-item border-0 border-bottom">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button fw-bold" type="button" data-bs-toggle="collapse" data-bs-target="#day-@iti.DayNo">
+                            Ngày @iti.DayNo: @iti.Title
+                        </button>
+                    </h2>
+                    <div id="day-@iti.DayNo" class="accordion-collapse collapse show">
+                        <div class="accordion-body">
+                            <p>@iti.Content</p>
+                            <small class="text-muted">🍽️ Bữa ăn: @(iti.Meals ?? "Tự túc") | 🏨 Lưu trú: @(iti.Accommodation ?? "Không")</small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+
+    <!-- KHU VỰC ĐÁNH GIÁ TOUR CỦA KHÁCH HÀNG (UC32 - UC34) -->
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <h4 class="fw-bold mb-3">
+                ⭐ Đánh Giá Từ Khách Hàng (@approvedReviews.Count) — Trung bình: <span class="text-warning">@avgStars ★</span>
+            </h4>
+
+            @if (!approvedReviews.Any())
+            {
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white text-muted">
+                    Chưa có đánh giá nào được duyệt cho tour này. Điểm mặc định của tour là <strong>@Model.DefaultRating ★</strong>.
+                </div>
+            }
+            else
+            {
+                foreach (var rev in approvedReviews)
+                {
+                    <div class="card mb-3 border-0 shadow-sm rounded-4 bg-white">
+                        <div class="card-body p-3">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="me-2">@rev.Customer?.FullName</strong>
+                                    <span class="text-warning fw-bold">
+                                        @for (int i = 1; i <= 5; i++)
+                                        {
+                                            <span>@(i <= rev.Rating ? "★" : "☆")</span>
+                                        }
+                                        (@rev.Rating ★)
+                                    </span>
+                                </div>
+                                <small class="text-muted">@rev.CreatedAt.ToString("dd/MM/yyyy")</small>
+                            </div>
+                            <p class="mb-0 mt-2 text-secondary">@rev.CommentText</p>
+                        </div>
+                    </div>
+                }
+            }
+        </div>
+
+        <!-- Form Gửi / Sửa / Xóa đánh giá của khách hàng (1 lần / 1 tour) -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                @if (User.Identity == null || !User.Identity.IsAuthenticated)
+                {
+                    <h5 class="fw-bold mb-2">Viết đánh giá của bạn</h5>
+                    <p class="text-muted small mb-3">Vui lòng đăng nhập để gửi đánh giá sao và nhận xét cho chương trình tour này.</p>
+                    <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="/Home/Details/@Model.TourId" class="btn btn-outline-primary rounded-pill fw-bold">
+                        Đăng nhập để đánh giá
+                    </a>
+                }
+                else
+                {
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h5 class="fw-bold mb-0">
+                            @(myReview == null ? "Gửi Đánh Giá Tour" : "Đánh Giá Của Bạn")
+                        </h5>
+                        @if (myReview != null)
+                        {
+                            <span class="badge @(myReview.Status == "APPROVED" ? "bg-success" : myReview.Status == "PENDING" ? "bg-warning text-dark" : "bg-secondary")">
+                                @(myReview.Status == "APPROVED" ? "Đã được duyệt" : myReview.Status == "PENDING" ? "Đang chờ Admin duyệt" : "Không được duyệt")
+                            </span>
+                        }
+                    </div>
+
+                    <form asp-action="SaveReview" method="post">
+                        <input type="hidden" name="tourId" value="@Model.TourId" />
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold text-secondary d-block mb-0">Chọn số sao đánh giá:</label>
+                            <div class="star-rating-input">
+                                @for (int s = 5; s >= 1; s--)
+                                {
+                                    bool isChecked = (myReview != null && myReview.Rating == s) || (myReview == null && s == 5);
+                                    <input type="radio" id="star-@s" name="rating" value="@s" checked="@isChecked" />
+                                    <label for="star-@s" title="@s sao">★</label>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold text-secondary">Nhận xét trải nghiệm của bạn *</label>
+                            <textarea name="commentText" rows="3" class="form-control" required placeholder="Chia sẻ cảm nhận của bạn về lịch trình, hướng dẫn viên, dịch vụ...">@myReview?.CommentText</textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 fw-bold rounded-pill">
+                            <i class="fa-solid fa-paper-plane me-1"></i>
+                            @(myReview == null ? "Gửi Đánh Giá (Chờ duyệt)" : "Cập Nhật Đánh Giá (Gửi duyệt lại)")
+                        </button>
+                    </form>
+
+                    @if (myReview != null)
+                    {
+                        <form asp-action="DeleteMyReview" method="post" class="mt-2" onsubmit="return confirm('Bạn muốn xóa đánh giá của mình?');">
+                            <input type="hidden" name="reviewId" value="@myReview.ReviewId" />
+                            <input type="hidden" name="tourId" value="@Model.TourId" />
+                            <button type="submit" class="btn btn-outline-danger btn-sm w-100 rounded-pill">
+                                <i class="fa-solid fa-trash me-1"></i> Xóa đánh giá của tôi
+                            </button>
+                        </form>
+                    }
+                }
+            </div>
+        </div>
+    </div>
+</div>

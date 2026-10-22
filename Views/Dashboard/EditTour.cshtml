@@ -1,0 +1,142 @@
+﻿@model TourManagementWeb.Models.Entities.Tour
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Chỉnh Sửa Tour: " + Model.TourName;
+    var categories = ViewBag.Categories as List<TourManagementWeb.Models.Entities.TourCategory>;
+    var provinces = ViewBag.Provinces as List<TourManagementWeb.Models.Entities.Province>;
+}
+
+<div class="card stat-card bg-white p-4">
+    <form asp-action="EditTour" method="post">
+        <input type="hidden" name="tourId" value="@Model.TourId" />
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Mã Tour *</label>
+                <input type="text" name="tourCode" value="@Model.TourCode" class="form-control text-uppercase" required />
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Tên Chương Trình Tour *</label>
+                <input type="text" name="tourName" value="@Model.TourName" class="form-control" required />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Số sao mặc định</label>
+                <select name="defaultRating" class="form-select fw-bold text-warning">
+                    @for (int s = 5; s >= 1; s--)
+                    {
+                        <option value="@s" selected="@(Math.Round(Model.DefaultRating) == s)">@s Sao (★)</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Loại Tour *</label>
+                <select name="categoryId" class="form-select" required>
+                    @if (categories != null)
+                    {
+                        foreach (var c in categories)
+                        {
+                            <option value="@c.CategoryId" selected="@(Model.CategoryId == c.CategoryId)">@c.CategoryName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Nơi khởi hành *</label>
+                <select name="departureProvinceId" class="form-select" required>
+                    @if (provinces != null)
+                    {
+                        foreach (var p in provinces)
+                        {
+                            <option value="@p.ProvinceId" selected="@(Model.DepartureProvinceId == p.ProvinceId)">@p.ProvinceName</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Số ngày *</label>
+                <input type="number" name="durationDays" value="@Model.DurationDays" min="1" class="form-control" required />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Số đêm *</label>
+                <input type="number" name="durationNights" value="@Model.DurationNights" min="0" class="form-control" required />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Phương tiện *</label>
+                <select name="transport" class="form-select">
+                    @foreach (var tr in new[] { "BUS", "FLIGHT", "TRAIN", "BOAT" })
+                    {
+                        <option value="@tr" selected="@(Model.Transport == tr)">@tr</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-md-9">
+                <label class="form-label fw-bold">Tóm tắt ngắn</label>
+                <input type="text" name="summary" value="@Model.Summary" class="form-control" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Trạng thái</label>
+                <select name="status" class="form-select">
+                    @foreach (var st in new[] { "PUBLISHED", "DRAFT", "HIDDEN" })
+                    {
+                        <option value="@st" selected="@(Model.Status == st)">@st</option>
+                    }
+                </select>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label fw-bold">Mô tả chi tiết</label>
+                <textarea name="description" rows="3" class="form-control">@Model.Description</textarea>
+            </div>
+
+            <div class="col-12 mt-4">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
+                    <h6 class="fw-bold text-primary mb-0">🖼️ Danh Sách Hình Ảnh Của Tour</h6>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addImgRow()">
+                        <i class="fa-solid fa-plus me-1"></i> Thêm ảnh mới
+                    </button>
+                </div>
+            </div>
+            <div class="col-12" id="imgListContainer">
+                @foreach (var img in Model.TourImages)
+                {
+                    <div class="row g-2 mb-2 align-items-center">
+                        <div class="col-md-1">
+                            <img src="@img.ImageUrl" class="rounded w-100" style="height: 38px; object-fit: cover;" />
+                        </div>
+                        <div class="col-md-6">
+                            <input type="text" name="imageUrls" value="@img.ImageUrl" class="form-control" required />
+                        </div>
+                        <div class="col-md-4">
+                            <input type="text" name="imageCaptions" value="@img.Caption" class="form-control" placeholder="Chú thích ảnh" />
+                        </div>
+                        <div class="col-md-1">
+                            <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.row').remove()">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="col-12 text-end mt-4">
+                <a asp-action="Tours" class="btn btn-secondary me-2">Quay lại</a>
+                <button type="submit" class="btn btn-primary fw-bold px-5">Lưu Thay Đổi</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        function addImgRow() {
+            const html = `<div class="row g-2 mb-2 align-items-center">
+                <div class="col-md-1 text-center text-muted"><i class="fa-regular fa-image fs-4"></i></div>
+                <div class="col-md-6"><input type="text" name="imageUrls" class="form-control" placeholder="Dán URL hình ảnh mới" /></div>
+                <div class="col-md-4"><input type="text" name="imageCaptions" class="form-control" placeholder="Chú thích ảnh" /></div>
+                <div class="col-md-1"><button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.row').remove()"><i class="fa-solid fa-trash"></i></button></div>
+            </div>`;
+            document.getElementById('imgListContainer').insertAdjacentHTML('beforeend', html);
+        }
+    </script>
+}

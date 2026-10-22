@@ -1,0 +1,77 @@
+﻿@model IEnumerable<TourManagementWeb.Models.Entities.Booking>
+@{
+    Layout = "_AdminLayout";
+    ViewData["Title"] = "Quản Lý & Xác Nhận Đơn Đặt Chỗ";
+}
+
+<div class="mb-3 d-flex gap-2">
+    <a asp-action="Bookings" class="btn btn-sm @(ViewBag.CurrentStatus == null ? "btn-dark" : "btn-outline-dark")">Tất cả</a>
+    <a asp-action="Bookings" asp-route-status="PENDING" class="btn btn-sm @(ViewBag.CurrentStatus == "PENDING" ? "btn-warning" : "btn-outline-warning text-dark")">Chờ xác nhận (PENDING)</a>
+    <a asp-action="Bookings" asp-route-status="CONFIRMED" class="btn btn-sm @(ViewBag.CurrentStatus == "CONFIRMED" ? "btn-success" : "btn-outline-success")">Đã xác nhận (CONFIRMED)</a>
+    <a asp-action="Bookings" asp-route-status="CANCELLED" class="btn btn-sm @(ViewBag.CurrentStatus == "CANCELLED" ? "btn-danger" : "btn-outline-danger")">Đã hủy</a>
+</div>
+
+<div class="card stat-card bg-white">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Mã Đơn</th>
+                    <th>Khách hàng</th>
+                    <th>Tour & Ngày đi</th>
+                    <th>Số khách</th>
+                    <th>Tổng tiền</th>
+                    <th>Trạng thái Đơn</th>
+                    <th>Thanh toán</th>
+                    <th class="text-end">Thao tác Nghiệp vụ</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var b in Model)
+                {
+                    <tr>
+                        <td class="fw-bold">@b.BookingCode</td>
+                        <td>
+                            <div class="fw-semibold">@b.Customer?.FullName</div>
+                            <small class="text-muted">@b.Customer?.Phone</small>
+                        </td>
+                        <td>
+                            <div class="fw-semibold">@b.Departure?.Tour?.TourName</div>
+                            <small class="text-muted">Khởi hành: @b.Departure?.DepartureDate.ToString("dd/MM/yyyy")</small>
+                        </td>
+                        <td>@(b.NumAdults + b.NumChildren) người</td>
+                        <td class="fw-bold text-danger">@b.FinalAmount.ToString("N0") đ</td>
+                        <td>
+                            <span class="badge @(b.Status == "CONFIRMED" || b.Status == "COMPLETED" ? "bg-success" : b.Status == "CANCELLED" ? "bg-danger" : "bg-warning text-dark")">
+                                @b.Status
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge @(b.PaymentStatus == "PAID" ? "bg-primary" : "bg-secondary")">@b.PaymentStatus</span>
+                        </td>
+                        <td class="text-end">
+                            @if (b.PaymentStatus == "UNPAID" && b.Status != "CANCELLED")
+                            {
+                                <form asp-action="RecordCashPayment" method="post" class="d-inline">
+                                    <input type="hidden" name="bookingId" value="@b.BookingId" />
+                                    <button class="btn btn-sm btn-outline-primary" title="Thu tiền tại quầy (UC37)">
+                                        <i class="fa-solid fa-money-bill-wave"></i> Thu tiền
+                                    </button>
+                                </form>
+                            }
+                            @if (b.Status == "PENDING")
+                            {
+                                <form asp-action="ConfirmBooking" method="post" class="d-inline ms-1">
+                                    <input type="hidden" name="bookingId" value="@b.BookingId" />
+                                    <button class="btn btn-sm btn-success fw-bold" title="Gọi SP_CONFIRM_BOOKING (UC17)">
+                                        <i class="fa-solid fa-check"></i> Duyệt đơn
+                                    </button>
+                                </form>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

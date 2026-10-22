@@ -1,0 +1,45 @@
+﻿@{
+    ViewData["Title"] = "Đăng ký tài khoản Khách hàng";
+}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-0 shadow-lg rounded-4 p-4">
+                <h3 class="fw-bolder text-primary text-center mb-4">Đăng Ký Thành Viên</h3>
+                @if (ViewBag.Error != null)
+                {
+                    <div class="alert alert-danger py-2 small">@ViewBag.Error</div>
+                }
+                <form asp-action="Register" method="post" class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Tên đăng nhập *</label>
+                        <input type="text" name="username" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Mật khẩu *</label>
+                        <input type="password" name="password" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Họ và tên *</label>
+                        <input type="text" name="fullName" class="form-control" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Số điện thoại *</label>
+                        <input type="text" name="phone" class="form-control" required />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Email *</label>
+                        <input type="email" name="email" class="form-control" required />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-semibold">Địa chỉ</label>
+                        <input type="text" name="address" class="form-control" />
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Hoàn tất Đăng ký</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

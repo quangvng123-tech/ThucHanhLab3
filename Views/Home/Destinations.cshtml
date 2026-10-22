@@ -1,0 +1,49 @@
+﻿@model IEnumerable<TourManagementWeb.Models.Entities.Province>
+@{
+    ViewData["Title"] = "Điểm Du Lịch 3 Miền";
+}
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h2 class="fw-bolder">Khám Phá Địa Phương & Điểm Du Lịch</h2>
+        <p class="text-muted">Các danh lam thắng cảnh nổi tiếng trải dài khắp 3 miền Bắc - Trung - Nam</p>
+        <div class="btn-group mt-2">
+            <a asp-action="Destinations" class="btn @(ViewBag.SelectedRegion == null ? "btn-primary" : "btn-outline-primary")">Tất cả 3 Miền</a>
+            <a asp-action="Destinations" asp-route-region="NORTH" class="btn @(ViewBag.SelectedRegion == "NORTH" ? "btn-primary" : "btn-outline-primary")">Miền Bắc</a>
+            <a asp-action="Destinations" asp-route-region="CENTRAL" class="btn @(ViewBag.SelectedRegion == "CENTRAL" ? "btn-primary" : "btn-outline-primary")">Miền Trung</a>
+            <a asp-action="Destinations" asp-route-region="SOUTH" class="btn @(ViewBag.SelectedRegion == "SOUTH" ? "btn-primary" : "btn-outline-primary")">Miền Nam</a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        @foreach (var prov in Model)
+        {
+            <div class="col-md-6">
+                <div class="card border-0 shadow-sm rounded-4 h-100">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h4 class="fw-bold text-primary mb-0"><i class="fa-solid fa-location-dot me-2"></i>@prov.ProvinceName</h4>
+                            <span class="badge bg-info text-dark">@prov.Region</span>
+                        </div>
+                        <p class="text-muted small mb-3">@prov.Description</p>
+                        <h6 class="fw-bold small text-uppercase text-secondary">Các địa danh nổi bật:</h6>
+                        <ul class="list-group list-group-flush">
+                            @foreach (var dest in prov.Destinations)
+                            {
+                                <li class="list-group-item px-0 py-2 border-light">
+                                    <strong><i class="fa-solid fa-camera-retro text-warning me-2"></i>@dest.DestinationName</strong>
+                                    <div class="small text-muted">@dest.Description</div>
+                                    <small class="text-secondary"><i class="fa-solid fa-map-pin me-1"></i>@dest.Address</small>
+                                </li>
+                            }
+                        </ul>
+                        <div class="mt-3 text-end">
+                            <a asp-action="Index" asp-route-provinceId="@prov.ProvinceId" class="btn btn-sm btn-outline-primary rounded-pill px-3">
+                                Xem các Tour đến @prov.ProvinceName →
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
