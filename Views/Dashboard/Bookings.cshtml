@@ -1,11 +1,13 @@
-﻿@model IEnumerable<TourManagementWeb.Models.Entities.Booking>
+﻿@using System.Globalization
+@model IEnumerable<TourManagementWeb.Models.Entities.Booking>
 @{
     Layout = "_AdminLayout";
     ViewData["Title"] = "Quản Lý & Xác Nhận Đơn Đặt Chỗ";
+    string FormatMoney(decimal amount) => amount.ToString("#,##0", CultureInfo.InvariantCulture) + " đ";
 }
 
 <div class="mb-3 d-flex gap-2">
-    <a asp-action="Bookings" class="btn btn-sm @(ViewBag.CurrentStatus == null ? "btn-dark" : "btn-outline-dark")">Tất cả</a>
+    <a asp-action="Bookings" class="btn btn-sm @(ViewBag.CurrentStatus == null ? "btn-dark" : "btn-outline-dark")">Tất cả (@Model.Count())</a>
     <a asp-action="Bookings" asp-route-status="PENDING" class="btn btn-sm @(ViewBag.CurrentStatus == "PENDING" ? "btn-warning" : "btn-outline-warning text-dark")">Chờ xác nhận (PENDING)</a>
     <a asp-action="Bookings" asp-route-status="CONFIRMED" class="btn btn-sm @(ViewBag.CurrentStatus == "CONFIRMED" ? "btn-success" : "btn-outline-success")">Đã xác nhận (CONFIRMED)</a>
     <a asp-action="Bookings" asp-route-status="CANCELLED" class="btn btn-sm @(ViewBag.CurrentStatus == "CANCELLED" ? "btn-danger" : "btn-outline-danger")">Đã hủy</a>
@@ -20,8 +22,8 @@
                     <th>Khách hàng</th>
                     <th>Tour & Ngày đi</th>
                     <th>Số khách</th>
-                    <th>Tổng tiền</th>
-                    <th>Trạng thái Đơn</th>
+                    <th>Chi phí & Khuyến mãi</th>
+                    <th>Trạng thái</th>
                     <th>Thanh toán</th>
                     <th class="text-end">Thao tác Nghiệp vụ</th>
                 </tr>
@@ -30,7 +32,15 @@
                 @foreach (var b in Model)
                 {
                     <tr>
-                        <td class="fw-bold">@b.BookingCode</td>
+                        <td class="fw-bold">
+                            @b.BookingCode
+                            @if (!string.IsNullOrWhiteSpace(b.Note))
+                            {
+                                <span class="badge bg-info text-dark d-block mt-1" style="font-size: 0.68rem;">
+                                    <i class="fa-regular fa-comment-dots"></i> Có ghi chú
+                                </span>
+                            }
+                        </td>
                         <td>
                             <div class="fw-semibold">@b.Customer?.FullName</div>
                             <small class="text-muted">@b.Customer?.Phone</small>
@@ -39,8 +49,19 @@
                             <div class="fw-semibold">@b.Departure?.Tour?.TourName</div>
                             <small class="text-muted">Khởi hành: @b.Departure?.DepartureDate.ToString("dd/MM/yyyy")</small>
                         </td>
-                        <td>@(b.NumAdults + b.NumChildren) người</td>
-                        <td class="fw-bold text-danger">@b.FinalAmount.ToString("N0") đ</td>
+                        <td>
+                            <span class="fw-bold">@(b.NumAdults + b.NumChildren) người</span>
+                            <small class="text-muted d-block">(@b.NumAdults NL, @b.NumChildren TE)</small>
+                        </td>
+                        <td>
+                            <div class="fw-bold text-danger">@FormatMoney(b.FinalAmount)</div>
+                            @if (b.DiscountAmount > 0)
+                            {
+                                <small class="text-success d-block">
+                                    <i class="fa-solid fa-tag"></i> @(b.Promotion?.PromoCode ?? "KM"): -@FormatMoney(b.DiscountAmount)
+                                </small>
+                            }
+                        </td>
                         <td>
                             <span class="badge @(b.Status == "CONFIRMED" || b.Status == "COMPLETED" ? "bg-success" : b.Status == "CANCELLED" ? "bg-danger" : "bg-warning text-dark")">
                                 @b.Status
@@ -50,11 +71,17 @@
                             <span class="badge @(b.PaymentStatus == "PAID" ? "bg-primary" : "bg-secondary")">@b.PaymentStatus</span>
                         </td>
                         <td class="text-end">
+                            <!-- Nút Xem Chi Tiết Đơn Đặt Chỗ -->
+                            <button type="button" class="btn btn-sm btn-outline-info text-dark fw-semibold me-1"
+                                    data-bs-toggle="modal" data-bs-target="#detailModal-@b.BookingId">
+                                <i class="fa-solid fa-eye"></i> Chi tiết
+                            </button>
+
                             @if (b.PaymentStatus == "UNPAID" && b.Status != "CANCELLED")
                             {
                                 <form asp-action="RecordCashPayment" method="post" class="d-inline">
                                     <input type="hidden" name="bookingId" value="@b.BookingId" />
-                                    <button class="btn btn-sm btn-outline-primary" title="Thu tiền tại quầy (UC37)">
+                                    <button class="btn btn-sm btn-outline-primary" title="Thu tiền tại quầy">
                                         <i class="fa-solid fa-money-bill-wave"></i> Thu tiền
                                     </button>
                                 </form>
@@ -63,7 +90,7 @@
                             {
                                 <form asp-action="ConfirmBooking" method="post" class="d-inline ms-1">
                                     <input type="hidden" name="bookingId" value="@b.BookingId" />
-                                    <button class="btn btn-sm btn-success fw-bold" title="Gọi SP_CONFIRM_BOOKING (UC17)">
+                                    <button class="btn btn-sm btn-success fw-bold">
                                         <i class="fa-solid fa-check"></i> Duyệt đơn
                                     </button>
                                 </form>
@@ -75,3 +102,114 @@
         </table>
     </div>
 </div>
+
+<!-- DANH SÁCH MODAL CHI TIẾT CHO TỪNG ĐƠN ĐẶT CHỖ -->
+@foreach (var b in Model)
+{
+    <div class="modal fade" id="detailModal-@b.BookingId" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg rounded-4">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title fw-bold">
+                        <i class="fa-solid fa-file-invoice me-2 text-info"></i>Chi Tiết Đơn Đặt Chỗ: @b.BookingCode
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded-3 h-100">
+                                <h6 class="fw-bold text-primary mb-2">👤 Thông Tin Người Đặt</h6>
+                                <div class="small mb-1">Họ tên: <strong>@b.Customer?.FullName</strong></div>
+                                <div class="small mb-1">Điện thoại: <strong>@b.Customer?.Phone</strong></div>
+                                <div class="small mb-1">Email: <strong>@b.Customer?.Email</strong></div>
+                                <div class="small">Thời gian đặt: <strong>@b.CreatedAt.ToString("dd/MM/yyyy HH:mm")</strong></div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 bg-light rounded-3 h-100">
+                                <h6 class="fw-bold text-primary mb-2">💰 Chi Tiết Thanh Toán & Khuyến Mãi</h6>
+                                <div class="d-flex justify-content-between small mb-1">
+                                    <span>Tổng tạm tính (@b.NumAdults NL, @b.NumChildren TE):</span>
+                                    <strong>@FormatMoney(b.TotalAmount)</strong>
+                                </div>
+                                <div class="d-flex justify-content-between small mb-1 text-success">
+                                    <span>Mã khuyến mãi (@(b.Promotion != null ? $"{b.Promotion.PromoCode} - {b.Promotion.Description}" : "Không dùng")):</span>
+                                    <strong>-@FormatMoney(b.DiscountAmount)</strong>
+                                </div>
+                                <hr class="my-2" />
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="fw-bold">Thành tiền phải thu:</span>
+                                    <span class="fs-5 fw-bolder text-danger">@FormatMoney(b.FinalAmount)</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ghi chú của khách hàng -->
+                    <div class="mb-3">
+                        <h6 class="fw-bold text-secondary mb-1">📝 Ghi Chú Của Khách Hàng:</h6>
+                        @if (!string.IsNullOrWhiteSpace(b.Note))
+                        {
+                            <div class="alert alert-warning py-2 mb-0 small fw-semibold">
+                                <i class="fa-solid fa-quote-left me-2"></i>@b.Note
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted small fst-italic mb-0">Khách hàng không để lại ghi chú.</p>
+                        }
+                    </div>
+
+                    <!-- Danh sách hành khách đi cùng -->
+                    <h6 class="fw-bold text-secondary mb-2">
+                        👥 Danh Sách Hành Khách Đi Cùng (@b.BookingPassengers.Count người):
+                    </h6>
+                    @if (!b.BookingPassengers.Any())
+                    {
+                        <p class="text-muted small fst-italic">Chưa có danh sách hành khách chi tiết.</p>
+                    }
+                    else
+                    {
+                        <table class="table table-sm table-bordered align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>STT</th>
+                                    <th>Họ và tên hành khách</th>
+                                    <th>Phân loại độ tuổi</th>
+                                    <th>Giới tính</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    int stt = 1;
+                                }
+                                @foreach (var pax in b.BookingPassengers)
+                                {
+                                    <tr>
+                                        <td>@(stt++)</td>
+                                        <td class="fw-semibold">@pax.FullName</td>
+                                        <td>
+                                            @if (pax.PassengerType == "ADULT")
+                                            {
+                                                <span class="badge bg-primary">Người lớn (ADULT)</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-info text-dark">Trẻ em (CHILD)</span>
+                                            }
+                                        </td>
+                                        <td>@(pax.Gender == "MALE" ? "Nam" : pax.Gender == "FEMALE" ? "Nữ" : "Khác")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4" data-bs-dismiss="modal">Đóng</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}

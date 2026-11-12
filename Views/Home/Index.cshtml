@@ -13,9 +13,13 @@
 
     string GetTourImage(decimal tourId, string code)
     {
-        if (primaryImages != null && primaryImages.TryGetValue(tourId, out var dbUrl) && !string.IsNullOrWhiteSpace(dbUrl) && dbUrl.StartsWith("http"))
+        if (primaryImages != null && primaryImages.TryGetValue(tourId, out var dbUrl) && !string.IsNullOrWhiteSpace(dbUrl))
         {
-            return dbUrl;
+            // Nhận cả ảnh upload từ máy tính (/images/tours/...) và ảnh http
+            if (dbUrl.StartsWith("http") || dbUrl.StartsWith("/images/tours/"))
+            {
+                return dbUrl;
+            }
         }
         return code switch
         {

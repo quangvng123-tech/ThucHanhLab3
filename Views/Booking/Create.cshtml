@@ -1,41 +1,195 @@
-﻿@model TourManagementWeb.Models.Entities.TourDeparture
+﻿@using System.Globalization
+@model TourManagementWeb.Models.Entities.TourDeparture
 @{
     ViewData["Title"] = "Đặt chỗ trực tuyến";
-    var promos = ViewBag.Promotions as List<TourManagementWeb.Models.Entities.Promotion>;
+    var promos = ViewBag.Promotions as List<TourManagementWeb.Models.Entities.Promotion> ?? new();
+    int availableSeats = Model.MaxSeats - Model.BookedSeats;
+    string FormatMoney(decimal amount) => amount.ToString("#,##0", CultureInfo.InvariantCulture) + " đ";
 }
+
 <div class="container py-5">
     <div class="row g-4">
-        <div class="col-lg-8">
+        <!-- Cột trái: Form nhập số hành khách, danh sách hành khách, mã khuyến mãi và ghi chú -->
+        <div class="col-lg-7">
             <div class="card border-0 shadow-sm rounded-4 p-4">
-                <h4 class="fw-bold text-primary mb-3"><i class="fa-solid fa-file-signature me-2"></i>Thông Tin Đặt Chỗ & Hành Khách</h4>
-                <form asp-action="Create" method="post">
+                <h4 class="fw-bold text-primary mb-3">
+                    <i class="fa-solid fa-file-signature me-2"></i>Thông Tin Đặt Chỗ & Hành Khách
+                </h4>
+
+                <form asp-action="Create" method="post" id="bookingForm">
                     <input type="hidden" name="departureId" value="@Model.DepartureId" />
+
                     <div class="row g-3 mb-4">
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Số người lớn (>=1) *</label>
-                            <input type="number" id="numAdults" name="numAdults" value="1" min="1" max="@(Model.MaxSeats - Model.BookedSeats)" class="form-control" required onchange="calcTotal()" />
+                        <div class="col-md-5">
+                            <label class="form-label fw-bold">Số hành khách (Tối đa @availableSeats chỗ) *</label>
+                            <input type="number" id="totalPassengers" name="totalPassengers" value="1" min="1" max="@availableSeats"
+                                   class="form-control form-control-lg fs-6 fw-bold text-primary" required oninput="syncPassengerRows()" onchange="syncPassengerRows()" />
                         </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Số trẻ em</label>
-                            <input type="number" id="numChildren" name="numChildren" value="0" min="0" class="form-control" onchange="calcTotal()" />
-                        </div>
-                        <div class="col-md-4">
-                            <label class="form-label fw-bold">Mã khuyến mãi (UC11)</label>
-                            <input type="text" name="promoCode" class="form-control text-uppercase" placeholder="VD: WELCOME10" />
+                        <div class="col-md-7">
+                            <label class="form-label fw-bold">Mã khuyến mãi (Chọn hoặc nhập mã)</label>
+                            <div class="input-group">
+                                <input type="text" id="promoCodeInput" name="promoCode" list="promoDataList"
+                                       class="form-control form-control-lg fs-6 text-uppercase" placeholder="Chọn hoặc nhập mã giảm giá"
+                                       oninput="recalculatePricing()" onchange="recalculatePricing()" autocomplete="off" />
+                                <button type="button" class="btn btn-outline-primary fw-semibold" onclick="recalculatePricing()">
+                                    Áp dụng
+                                </button>
+                            </div>
+                            <datalist id="promoDataList">
+                                @foreach (var p in promos)
+                                {
+                                    <option value="@p.PromoCode">@p.Description (Đơn từ @FormatMoney(p.MinOrderAmount))</option>
+                                }
+                            </datalist>
+                            <small id="promoMessage" class="d-block mt-1 fw-semibold"></small>
                         </div>
                     </div>
 
-                    <h6 class="fw-bold text-secondary mb-2">Danh sách hành khách đi cùng (UC10):</h6>
-                    <div id="paxContainer" class="mb-3">
-                        <div class="row g-2 mb-2">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="fw-bold text-secondary mb-0">
+                            Danh sách hành khách đi cùng (<span id="paxCountLabel">1</span> hành khách):
+                        </h6>
+                        <small class="text-muted">Chọn Người lớn / Trẻ em ở từng dòng để tính giá</small>
+                    </div>
+
+                    <!-- Khung chứa các dòng hành khách tự động tăng/giảm theo ô Số hành khách -->
+                    <div id="paxContainer" class="mb-4"></div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Ghi chú thêm</label>
+                        <textarea name="note" rows="2" class="form-control" placeholder="Nhập yêu cầu đặc biệt (ăn chay, hỗ trợ xe lăn, đón tại điểm hẹn...)"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-warning btn-lg fw-bold w-100 py-3 shadow-sm">
+                        Xác Nhận Đặt Tour (Giữ chỗ ngay)
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Cột phải: Thông tin Tour, Bảng tính tiền trực tiếp (Real-time) & Danh sách mã khuyến mãi -->
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-3">
+                <h5 class="fw-bold text-dark mb-2">@Model.Tour.TourName</h5>
+                <p class="small text-muted mb-1">Mã đợt: <strong>#@Model.DepartureId</strong> | Khởi hành: <strong>@Model.DepartureDate.ToString("dd/MM/yyyy")</strong></p>
+                <p class="small text-muted mb-2">Điểm hẹn: <strong>@Model.MeetingPoint</strong></p>
+                <div class="mb-3">
+                    Số chỗ còn nhận: <span class="badge bg-success">@availableSeats chỗ</span>
+                </div>
+
+                <hr />
+                <div class="d-flex justify-content-between small mb-2">
+                    <span class="text-muted">Đơn giá Người lớn:</span>
+                    <strong>@FormatMoney(Model.PriceAdult) / khách</strong>
+                </div>
+                <div class="d-flex justify-content-between small mb-3">
+                    <span class="text-muted">Đơn giá Trẻ em:</span>
+                    <strong>@FormatMoney(Model.PriceChild) / khách</strong>
+                </div>
+
+                <!-- BẢNG TÍNH TIỀN TRỰC TIẾP THEO SỐ KHÁCH & MÃ KHUYẾN MÃI -->
+                <div class="bg-light rounded-4 p-3 border">
+                    <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">
+                        <i class="fa-solid fa-calculator me-1"></i>Chi Tiết Chi Phí Tạm Tính
+                    </h6>
+                    <div class="d-flex justify-content-between small mb-2">
+                        <span>Người lớn (<strong id="summaryAdultCount">1</strong> x @FormatMoney(Model.PriceAdult)):</span>
+                        <span class="fw-semibold" id="summaryAdultTotal">@FormatMoney(Model.PriceAdult)</span>
+                    </div>
+                    <div class="d-flex justify-content-between small mb-2">
+                        <span>Trẻ em (<strong id="summaryChildCount">0</strong> x @FormatMoney(Model.PriceChild)):</span>
+                        <span class="fw-semibold" id="summaryChildTotal">0 đ</span>
+                    </div>
+                    <div class="d-flex justify-content-between small pt-2 border-top mb-2">
+                        <span class="fw-semibold">Tạm tính:</span>
+                        <strong id="summarySubTotal">@FormatMoney(Model.PriceAdult)</strong>
+                    </div>
+                    <div class="d-flex justify-content-between small text-success mb-2">
+                        <span>Khuyến mãi (<span id="summaryPromoLabel">Chưa áp dụng</span>):</span>
+                        <strong id="summaryDiscountAmount">-0 đ</strong>
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center pt-2 border-top mt-2">
+                        <span class="fw-bold text-dark">TỔNG THANH TOÁN:</span>
+                        <span class="fs-4 fw-bolder text-danger" id="summaryFinalAmount">@FormatMoney(Model.PriceAdult)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danh sách mã khuyến mãi bấm chọn nhanh -->
+            @if (promos.Any())
+            {
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                    <h6 class="fw-bold text-primary mb-2">
+                        <i class="fa-solid fa-tags me-1"></i>Mã khuyến mãi đang mở (Bấm để chọn nhanh):
+                    </h6>
+                    <div class="d-flex flex-column gap-2" style="max-height: 260px; overflow-y: auto;">
+                        @foreach (var p in promos)
+                        {
+                            <div class="p-2 border rounded-3 d-flex justify-content-between align-items-center bg-light">
+                                <div class="small">
+                                    <code class="fw-bold text-danger fs-6">@p.PromoCode</code>
+                                    <div class="text-muted" style="font-size: 0.78rem;">@p.Description</div>
+                                    <div class="text-secondary" style="font-size: 0.72rem;">Đơn tối thiểu: @FormatMoney(p.MinOrderAmount)</div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold" onclick="selectPromo('@p.PromoCode')">
+                                    Dùng mã
+                                </button>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const PRICE_ADULT = @Model.PriceAdult;
+        const PRICE_CHILD = @Model.PriceChild;
+        const MAX_SEATS = @availableSeats;
+
+        // Danh sách mã khuyến mãi từ Database nạp sang JS để tính trực tiếp
+        const PROMOTIONS = [
+            @foreach (var p in promos)
+            {
+                    @:{ code: "@p.PromoCode", type: "@p.DiscountType", value: @p.DiscountValue, minOrder: @p.MinOrderAmount, desc: "@Html.Raw(p.Description)" },
+            }
+        ];
+
+        function formatCurrency(num) {
+            return Math.round(num).toLocaleString('en-US') + ' đ';
+        }
+
+        // Tự động tăng/giảm số dòng hành khách khớp 100% với ô "Số hành khách"
+        function syncPassengerRows() {
+            const input = document.getElementById('totalPassengers');
+            let count = parseInt(input.value) || 1;
+            if (count < 1) count = 1;
+            if (count > MAX_SEATS) count = MAX_SEATS;
+            input.value = count;
+
+            document.getElementById('paxCountLabel').innerText = count;
+
+            const container = document.getElementById('paxContainer');
+            const currentRows = container.querySelectorAll('.pax-row');
+
+            // Nếu số hành khách tăng lên -> Thêm dòng mới
+            if (count > currentRows.length) {
+                for (let i = currentRows.length + 1; i <= count; i++) {
+                    const rowHtml = `
+                        <div class="row g-2 mb-2 pax-row align-items-center">
                             <div class="col-md-6">
-                                <input type="text" name="paxNames" class="form-control" placeholder="Họ tên hành khách 1 *" required />
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light fw-bold text-secondary">#${i}</span>
+                                    <input type="text" name="paxNames" class="form-control" placeholder="Họ và tên hành khách ${i} *" required />
+                                </div>
                             </div>
                             <div class="col-md-3">
-                                <select name="paxTypes" class="form-select">
-                                    <option value="ADULT">Người lớn</option>
-                                    <option value="CHILD">Trẻ em</option>
-                                </select>
+                                        <select name="paxTypes" class="form-select pax-type-select" onchange="recalculatePricing()">
+            <option value="ADULT" selected>Người lớn (Từ 13 tuổi)</option>
+            <option value="CHILD">Trẻ em (Dưới 13 tuổi)</option>
+        </select>
                             </div>
                             <div class="col-md-3">
                                 <select name="paxGenders" class="form-select">
@@ -43,63 +197,93 @@
                                     <option value="FEMALE">Nữ</option>
                                 </select>
                             </div>
-                        </div>
-                    </div>
-                    <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="addPaxRow()">
-                        + Thêm dòng hành khách
-                    </button>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-bold">Ghi chú thêm</label>
-                        <textarea name="note" rows="2" class="form-control" placeholder="Yêu cầu ăn chay, đón tại sân bay..."></textarea>
-                    </div>
-
-                    <button type="submit" class="btn btn-warning btn-lg fw-bold w-100">
-                        Xác Nhận Đặt Tour (Giữ chỗ ngay)
-                    </button>
-                </form>
-            </div>
-        </div>
-
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
-                <h5 class="fw-bold mb-3">@Model.Tour.TourName</h5>
-                <p class="small text-muted mb-2">Mã đợt: #@Model.DepartureId | Khởi hành: <strong>@Model.DepartureDate.ToString("dd/MM/yyyy")</strong></p>
-                <p class="small text-muted mb-2">Điểm hẹn: <strong>@Model.MeetingPoint</strong></p>
-                <p class="small text-muted mb-3">Số chỗ còn nhận: <span class="badge bg-success">@(Model.MaxSeats - Model.BookedSeats) chỗ</span></p>
-                <hr />
-                <div class="d-flex justify-content-between mb-2">
-                    <span>Giá Người lớn:</span>
-                    <strong>@Model.PriceAdult.ToString("N0") đ</strong>
-                </div>
-                <div class="d-flex justify-content-between mb-3">
-                    <span>Giá Trẻ em:</span>
-                    <strong>@Model.PriceChild.ToString("N0") đ</strong>
-                </div>
-                @if (promos != null && promos.Any())
-                {
-                    <div class="bg-light p-3 rounded-3 small">
-                        <strong class="d-block mb-1 text-primary"><i class="fa-solid fa-ticket me-1"></i>Mã giảm giá đang mở:</strong>
-                        @foreach (var p in promos)
-                        {
-                            <div><code>@p.PromoCode</code>: @p.Description</div>
-                        }
-                    </div>
+                        </div>`;
+                    container.insertAdjacentHTML('beforeend', rowHtml);
                 }
-            </div>
-        </div>
-    </div>
-</div>
+            }
+            // Nếu số hành khách giảm xuống -> Xóa bớt dòng cuối
+            else if (count < currentRows.length) {
+                for (let i = currentRows.length - 1; i >= count; i--) {
+                    currentRows[i].remove();
+                }
+            }
 
-@section Scripts {
-    <script>
-        function addPaxRow() {
-            const html = `<div class="row g-2 mb-2">
-                <div class="col-md-6"><input type="text" name="paxNames" class="form-control" placeholder="Họ tên hành khách" required /></div>
-                <div class="col-md-3"><select name="paxTypes" class="form-select"><option value="ADULT">Người lớn</option><option value="CHILD">Trẻ em</option></select></div>
-                <div class="col-md-3"><select name="paxGenders" class="form-select"><option value="MALE">Nam</option><option value="FEMALE">Nữ</option></select></div>
-            </div>`;
-            document.getElementById('paxContainer').insertAdjacentHTML('beforeend', html);
+            recalculatePricing();
         }
+
+        function selectPromo(code) {
+            document.getElementById('promoCodeInput').value = code;
+            recalculatePricing();
+        }
+
+        // Tính lại tiền Người lớn, Trẻ em, Khuyến mãi và Tổng thanh toán
+        function recalculatePricing() {
+            const typeSelects = document.querySelectorAll('.pax-type-select');
+            let adultCount = 0;
+            let childCount = 0;
+
+            typeSelects.forEach(sel => {
+                if (sel.value === 'CHILD') childCount++;
+                else adultCount++;
+            });
+
+            // Đảm bảo ít nhất 1 người lớn theo quy định ràng buộc DB
+            if (adultCount === 0 && typeSelects.length > 0) {
+                typeSelects[0].value = 'ADULT';
+                adultCount = 1;
+                childCount = Math.max(0, typeSelects.length - 1);
+            }
+
+            const adultTotal = adultCount * PRICE_ADULT;
+            const childTotal = childCount * PRICE_CHILD;
+            const subTotal = adultTotal + childTotal;
+
+            let discount = 0;
+            const codeInput = document.getElementById('promoCodeInput').value.trim().toUpperCase();
+            const msgEl = document.getElementById('promoMessage');
+            const promoLabelEl = document.getElementById('summaryPromoLabel');
+
+            if (codeInput !== '') {
+                const found = PROMOTIONS.find(p => p.code === codeInput);
+                if (!found) {
+                    msgEl.className = 'd-block mt-1 fw-semibold text-danger small';
+                    msgEl.innerText = '❌ Mã khuyến mãi không tồn tại hoặc đã hết hạn.';
+                    promoLabelEl.innerText = 'Mã không hợp lệ';
+                } else if (subTotal < found.minOrder) {
+                    msgEl.className = 'd-block mt-1 fw-semibold text-warning small';
+                    msgEl.innerText = `⚠️ Mã ${found.code} yêu cầu đơn tối thiểu từ ${formatCurrency(found.minOrder)}.`;
+                    promoLabelEl.innerText = 'Chưa đủ điều kiện';
+                } else {
+                    if (found.type === 'PERCENT') {
+                        discount = Math.round(subTotal * found.value / 100);
+                        promoLabelEl.innerText = `${found.code} (-${found.value}%)`;
+                    } else {
+                        discount = found.value;
+                        promoLabelEl.innerText = `${found.code} (-${formatCurrency(found.value)})`;
+                    }
+                    if (discount > subTotal) discount = subTotal;
+                    msgEl.className = 'd-block mt-1 fw-semibold text-success small';
+                    msgEl.innerText = `✅ Đã áp dụng mã ${found.code}: Giảm ${formatCurrency(discount)}!`;
+                }
+            } else {
+                msgEl.innerText = '';
+                promoLabelEl.innerText = 'Chưa áp dụng';
+            }
+
+            const finalAmount = subTotal - discount;
+
+            document.getElementById('summaryAdultCount').innerText = adultCount;
+            document.getElementById('summaryChildCount').innerText = childCount;
+            document.getElementById('summaryAdultTotal').innerText = formatCurrency(adultTotal);
+            document.getElementById('summaryChildTotal').innerText = formatCurrency(childTotal);
+            document.getElementById('summarySubTotal').innerText = formatCurrency(subTotal);
+            document.getElementById('summaryDiscountAmount').innerText = '-' + formatCurrency(discount);
+            document.getElementById('summaryFinalAmount').innerText = formatCurrency(finalAmount);
+        }
+
+        // Khởi tạo dòng hành khách đầu tiên khi mở trang
+        document.addEventListener('DOMContentLoaded', () => {
+            syncPassengerRows();
+        });
     </script>
 }

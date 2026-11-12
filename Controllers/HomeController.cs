@@ -192,10 +192,23 @@ namespace TourManagementWeb.Controllers
             return RedirectToAction(nameof(Details), new { id = tourId });
         }
 
+        // UC08: Xem Địa phương & Điểm du lịch 3 miền (Tự động liên kết với cả các Tour mới tạo)
         public async Task<IActionResult> Destinations(string? region)
         {
-            var query = _db.Provinces.Include(p => p.Destinations.Where(d => d.Status == "ACTIVE")).AsQueryable();
-            if (!string.IsNullOrEmpty(region)) query = query.Where(p => p.Region == region);
+            var query = _db.Provinces
+                .Include(p => p.Destinations.Where(d => d.Status == "ACTIVE"))
+                .Include(p => p.Tours.Where(t => t.Status == "PUBLISHED"))
+                    .ThenInclude(t => t.TourDepartures)
+                .Include(p => p.Destinations)
+                    .ThenInclude(d => d.TourDestinations)
+                        .ThenInclude(td => td.Tour)
+                .AsQueryable();
+
+            if (!string.IsNullOrEmpty(region))
+            {
+                query = query.Where(p => p.Region == region);
+            }
+
             ViewBag.SelectedRegion = region;
             return View(await query.OrderBy(p => p.ProvinceId).ToListAsync());
         }

@@ -1,45 +1,101 @@
-﻿@model IEnumerable<TourManagementWeb.Models.Entities.Province>
+﻿@using System.Globalization
+@model IEnumerable<TourManagementWeb.Models.Entities.Province>
 @{
     ViewData["Title"] = "Điểm Du Lịch 3 Miền";
+    string FormatMoney(decimal amount) => amount.ToString("#,##0", CultureInfo.InvariantCulture) + " đ";
+    string GetRegionBadge(string region) => region switch
+    {
+        "NORTH" => "Miền Bắc (NORTH)",
+        "CENTRAL" => "Miền Trung (CENTRAL)",
+        "SOUTH" => "Miền Nam (SOUTH)",
+        _ => region
+    };
 }
+
 <div class="container py-5">
     <div class="text-center mb-5">
-        <h2 class="fw-bolder">Khám Phá Địa Phương & Điểm Du Lịch</h2>
-        <p class="text-muted">Các danh lam thắng cảnh nổi tiếng trải dài khắp 3 miền Bắc - Trung - Nam</p>
-        <div class="btn-group mt-2">
-            <a asp-action="Destinations" class="btn @(ViewBag.SelectedRegion == null ? "btn-primary" : "btn-outline-primary")">Tất cả 3 Miền</a>
-            <a asp-action="Destinations" asp-route-region="NORTH" class="btn @(ViewBag.SelectedRegion == "NORTH" ? "btn-primary" : "btn-outline-primary")">Miền Bắc</a>
-            <a asp-action="Destinations" asp-route-region="CENTRAL" class="btn @(ViewBag.SelectedRegion == "CENTRAL" ? "btn-primary" : "btn-outline-primary")">Miền Trung</a>
-            <a asp-action="Destinations" asp-route-region="SOUTH" class="btn @(ViewBag.SelectedRegion == "SOUTH" ? "btn-primary" : "btn-outline-primary")">Miền Nam</a>
+        <h2 class="fw-bolder">Khám Phá Địa Phương & Điểm Du Lịch 3 Miền</h2>
+        <p class="text-muted">Các danh lam thắng cảnh và hành trình tour đặc sắc trải dài khắp Bắc - Trung - Nam</p>
+        <div class="btn-group mt-2 shadow-sm">
+            <a asp-action="Destinations" class="btn @(ViewBag.SelectedRegion == null ? "btn-primary fw-bold" : "btn-outline-primary")">Tất cả 3 Miền</a>
+            <a asp-action="Destinations" asp-route-region="NORTH" class="btn @(ViewBag.SelectedRegion == "NORTH" ? "btn-primary fw-bold" : "btn-outline-primary")">Miền Bắc</a>
+            <a asp-action="Destinations" asp-route-region="CENTRAL" class="btn @(ViewBag.SelectedRegion == "CENTRAL" ? "btn-primary fw-bold" : "btn-outline-primary")">Miền Trung</a>
+            <a asp-action="Destinations" asp-route-region="SOUTH" class="btn @(ViewBag.SelectedRegion == "SOUTH" ? "btn-primary fw-bold" : "btn-outline-primary")">Miền Nam</a>
         </div>
     </div>
 
     <div class="row g-4">
         @foreach (var prov in Model)
         {
+            // Gom tất cả các Tour xuất phát từ tỉnh này HOẶC có điểm đến thuộc tỉnh này
+            var relatedTours = prov.Tours.Where(t => t.Status == "PUBLISHED")
+            .Union(prov.Destinations.SelectMany(d => d.TourDestinations.Select(td => td.Tour)).Where(t => t != null && t.Status == "PUBLISHED"))
+            .DistinctBy(t => t.TourId)
+            .ToList();
+
             <div class="col-md-6">
-                <div class="card border-0 shadow-sm rounded-4 h-100">
-                    <div class="card-body p-4">
+                <div class="card border-0 shadow-sm rounded-4 h-100 d-flex flex-column">
+                    <div class="card-body p-4 d-flex flex-column flex-grow-1">
                         <div class="d-flex justify-content-between align-items-center mb-2">
-                            <h4 class="fw-bold text-primary mb-0"><i class="fa-solid fa-location-dot me-2"></i>@prov.ProvinceName</h4>
-                            <span class="badge bg-info text-dark">@prov.Region</span>
+                            <h4 class="fw-bold text-primary mb-0">
+                                <i class="fa-solid fa-location-dot me-2 text-danger"></i>@prov.ProvinceName
+                            </h4>
+                            <span class="badge bg-info text-dark px-3 py-2 rounded-pill">@GetRegionBadge(prov.Region)</span>
                         </div>
                         <p class="text-muted small mb-3">@prov.Description</p>
-                        <h6 class="fw-bold small text-uppercase text-secondary">Các địa danh nổi bật:</h6>
-                        <ul class="list-group list-group-flush">
-                            @foreach (var dest in prov.Destinations)
+
+                        @if (prov.Destinations.Any())
+                        {
+                            <h6 class="fw-bold small text-uppercase text-secondary mb-2">Các địa danh nổi bật:</h6>
+                            <ul class="list-group list-group-flush mb-3">
+                                @foreach (var dest in prov.Destinations)
+                                {
+                                    <li class="list-group-item px-0 py-2 border-light">
+                                        <strong><i class="fa-solid fa-camera-retro text-warning me-2"></i>@dest.DestinationName</strong>
+                                        <div class="small text-muted">@dest.Description</div>
+                                        @if (!string.IsNullOrEmpty(dest.Address))
+                                        {
+                                            <small class="text-secondary"><i class="fa-solid fa-map-pin me-1"></i>@dest.Address</small>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+
+                        <!-- Tự động hiển thị các Tour (bao gồm cả Tour mới tạo ở Admin) thuộc tỉnh này -->
+                        <div class="mt-auto pt-3 border-top">
+                            <h6 class="fw-bold small text-uppercase text-primary mb-2">
+                                <i class="fa-solid fa-route me-1"></i>Chương trình Tour liên quan (@relatedTours.Count):
+                            </h6>
+                            @if (!relatedTours.Any())
                             {
-                                <li class="list-group-item px-0 py-2 border-light">
-                                    <strong><i class="fa-solid fa-camera-retro text-warning me-2"></i>@dest.DestinationName</strong>
-                                    <div class="small text-muted">@dest.Description</div>
-                                    <small class="text-secondary"><i class="fa-solid fa-map-pin me-1"></i>@dest.Address</small>
-                                </li>
+                                <p class="small text-muted fst-italic mb-2">Hiện chưa có lịch trình mở bán tại địa phương này.</p>
                             }
-                        </ul>
-                        <div class="mt-3 text-end">
-                            <a asp-action="Index" asp-route-provinceId="@prov.ProvinceId" class="btn btn-sm btn-outline-primary rounded-pill px-3">
-                                Xem các Tour đến @prov.ProvinceName →
-                            </a>
+                            else
+                            {
+                                <div class="d-flex flex-column gap-2 mb-3">
+                                    @foreach (var t in relatedTours)
+                                    {
+                                        var minPrice = t.TourDepartures?.Where(d => d.Status == "OPEN").Select(d => (decimal?)d.PriceAdult).Min();
+                                        <a asp-controller="Home" asp-action="Details" asp-route-id="@t.TourId"
+                                           class="p-2 rounded-3 bg-light border text-decoration-none d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="fw-bold text-dark small">@t.TourName</div>
+                                                <small class="text-muted">@t.DurationDays ngày @t.DurationNights đêm | @t.Transport</small>
+                                            </div>
+                                            <span class="badge bg-danger rounded-pill px-3 py-2">
+                                                @(minPrice.HasValue? FormatMoney(minPrice.Value) : "Xem chi tiết")
+                                            </span>
+                                        </a>
+                                    }
+                                </div>
+                            }
+
+                            <div class="text-end">
+                                <a asp-action="Index" asp-route-provinceId="@prov.ProvinceId" class="btn btn-sm btn-outline-primary rounded-pill px-3 fw-semibold">
+                                    Lọc tất cả Tour tại @prov.ProvinceName →
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>

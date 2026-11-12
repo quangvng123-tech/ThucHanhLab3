@@ -10,32 +10,28 @@
                 {
                     <div class="alert alert-danger py-2 small">@ViewBag.Error</div>
                 }
-                <form asp-action="Register" method="post" class="row g-3">
+                <form asp-action="Register" method="post" class="row g-3" autocomplete="off">
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Tên đăng nhập *</label>
-                        <input type="text" name="username" class="form-control" required />
+                        <input type="text" name="username" class="form-control" required placeholder="Nhập tên đăng nhập" autocomplete="new-username" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Mật khẩu *</label>
-                        <input type="password" name="password" class="form-control" required />
+                        <input type="password" name="password" class="form-control" required placeholder="Nhập mật khẩu" autocomplete="new-password" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Họ và tên *</label>
-                        <input type="text" name="fullName" class="form-control" required />
+                        <input type="text" name="fullName" class="form-control" required placeholder="Nhập họ và tên" />
                     </div>
                     <div class="col-md-6">
                         <label class="form-label fw-semibold">Số điện thoại *</label>
-                        <input type="text" name="phone" class="form-control" required />
+                        <input type="text" name="phone" class="form-control" required placeholder="Nhập số điện thoại" />
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-semibold">Email *</label>
-                        <input type="email" name="email" class="form-control" required />
+                        <input type="email" name="email" class="form-control" required placeholder="Nhập địa chỉ email" />
                     </div>
-                    <div class="col-12">
-                        <label class="form-label fw-semibold">Địa chỉ</label>
-                        <input type="text" name="address" class="form-control" />
-                    </div>
-                    <div class="col-12 mt-3">
+                    <div class="col-12 mt-4">
                         <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Hoàn tất Đăng ký</button>
                     </div>
                 </form>

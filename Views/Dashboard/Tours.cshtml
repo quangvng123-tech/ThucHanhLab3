@@ -63,15 +63,27 @@
                             </span>
                         </td>
                         <td class="text-end">
+                            @{
+                                bool hasBookings = t.TourDepartures.Any(d => d.BookedSeats > 0);
+                            }
                             <a asp-action="EditTour" asp-route-id="@t.TourId" class="btn btn-sm btn-outline-primary me-1">
                                 <i class="fa-solid fa-pen-to-square"></i> Sửa
                             </a>
-                            <form asp-action="DeleteTour" method="post" class="d-inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa tour này?');">
-                                <input type="hidden" name="id" value="@t.TourId" />
-                                <button type="submit" class="btn btn-sm btn-outline-danger">
-                                    <i class="fa-solid fa-trash"></i> Xóa
+                            @if (hasBookings)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Tour đã có khách đặt chỗ, không thể xóa">
+                                    <i class="fa-solid fa-lock me-1"></i> Đã có khách
                                 </button>
-                            </form>
+                            }
+                            else
+                            {
+                                <form asp-action="DeleteTour" method="post" class="d-inline" onsubmit="return confirm('Bạn chắc chắn muốn xóa vĩnh viễn tour này?');">
+                                    <input type="hidden" name="id" value="@t.TourId" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="fa-solid fa-trash"></i> Xóa
+                                    </button>
+                                </form>
+                            }
                         </td>
                     </tr>
                 }

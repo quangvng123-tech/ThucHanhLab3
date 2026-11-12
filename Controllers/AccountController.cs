@@ -37,7 +37,6 @@ namespace TourManagementWeb.Controllers
                 return View();
             }
 
-            // Cho phép đăng nhập tài khoản dữ liệu mẫu bằng mật khẩu "123456" hoặc khớp PasswordHash
             bool isValid = (password == "123456") || (user.PasswordHash == password);
             if (!isValid)
             {
@@ -67,6 +66,8 @@ namespace TourManagementWeb.Controllers
             {
                 new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
                 new Claim(ClaimTypes.Name, user.FullName),
+                new Claim(ClaimTypes.Email, user.Email ?? ""),
+                new Claim(ClaimTypes.MobilePhone, user.Phone ?? "Chưa cập nhật"),
                 new Claim("Username", user.Username),
                 new Claim(ClaimTypes.Role, user.Role.RoleName)
             };
@@ -85,11 +86,11 @@ namespace TourManagementWeb.Controllers
         public IActionResult Register() => View();
 
         [HttpPost]
-        public async Task<IActionResult> Register(string username, string email, string password, string fullName, string phone, string address)
+        public async Task<IActionResult> Register(string username, string email, string password, string fullName, string phone)
         {
             if (await _db.Users.AnyAsync(u => u.Username == username || u.Email == email))
             {
-                ViewBag.Error = "Username hoặc Email đã được sử dụng!";
+                ViewBag.Error = "Tên đăng nhập hoặc Email đã được sử dụng!";
                 return View();
             }
 
@@ -99,8 +100,8 @@ namespace TourManagementWeb.Controllers
                 Username = username.Trim(),
                 Email = email.Trim(),
                 PasswordHash = password,
-                FullName = fullName,
-                Phone = phone,
+                FullName = fullName.Trim(),
+                Phone = phone.Trim(),
                 RoleId = customerRole.RoleId,
                 Status = "ACTIVE",
                 CreatedAt = DateTime.Now
@@ -111,10 +112,9 @@ namespace TourManagementWeb.Controllers
             var newCustomer = new Customer
             {
                 UserId = newUser.UserId,
-                FullName = fullName,
+                FullName = fullName.Trim(),
                 Email = email.Trim(),
-                Phone = phone,
-                Address = address,
+                Phone = phone.Trim(),
                 CreatedAt = DateTime.Now
             };
             _db.Customers.Add(newCustomer);
@@ -131,4 +131,4 @@ namespace TourManagementWeb.Controllers
             return RedirectToAction("Index", "Home");
         }
     }
-}   
+}

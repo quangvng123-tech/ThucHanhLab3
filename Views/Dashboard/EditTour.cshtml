@@ -4,19 +4,30 @@
     ViewData["Title"] = "Chỉnh Sửa Tour: " + Model.TourName;
     var categories = ViewBag.Categories as List<TourManagementWeb.Models.Entities.TourCategory>;
     var provinces = ViewBag.Provinces as List<TourManagementWeb.Models.Entities.Province>;
+    string todayStr = DateTime.Now.ToString("yyyy-MM-dd");
+    var selectedTransports = (Model.Transport ?? "BUS").Split(new[] { '+', ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToUpper()).ToHashSet();
+    string currentRegion = Model.DepartureProvince?.Region ?? "CENTRAL";
 }
 
 <div class="card stat-card bg-white p-4">
-    <form asp-action="EditTour" method="post">
+    <form asp-action="EditTour" method="post" enctype="multipart/form-data" id="tourForm" onsubmit="return validateTourForm()">
         <input type="hidden" name="tourId" value="@Model.TourId" />
-        <div class="row g-3">
+
+        <!-- PHẦN 1: THÔNG TIN CHUNG CỦA TOUR -->
+        <h6 class="fw-bold text-primary border-bottom pb-2 mb-3">1. Thông Tin Chung Chương Trình Tour</h6>
+        <div class="row g-3 mb-4">
             <div class="col-md-3">
-                <label class="form-label fw-bold">Mã Tour *</label>
-                <input type="text" name="tourCode" value="@Model.TourCode" class="form-control text-uppercase" required />
+                <label class="form-label fw-bold">Mã Tour (Tự động)</label>
+                <div class="input-group">
+                    <input type="text" id="tourCodeInput" name="tourCode" value="@Model.TourCode" class="form-control fw-bold text-primary bg-light" readonly required />
+                    <button type="button" class="btn btn-outline-secondary" onclick="generateRandomTourCode()" title="Tạo mã ngẫu nhiên mới">
+                        <i class="fa-solid fa-rotate"></i>
+                    </button>
+                </div>
             </div>
             <div class="col-md-6">
                 <label class="form-label fw-bold">Tên Chương Trình Tour *</label>
-                <input type="text" name="tourName" value="@Model.TourName" class="form-control" required />
+                <input type="text" id="tourNameInput" name="tourName" value="@Model.TourName" class="form-control" required />
             </div>
             <div class="col-md-3">
                 <label class="form-label fw-bold">Số sao mặc định</label>
@@ -28,7 +39,7 @@
                 </select>
             </div>
 
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label fw-bold">Loại Tour *</label>
                 <select name="categoryId" class="form-select" required>
                     @if (categories != null)
@@ -40,39 +51,76 @@
                     }
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label fw-bold">Nơi khởi hành *</label>
-                <select name="departureProvinceId" class="form-select" required>
+                <input type="text" id="departureProvinceInput" name="departureProvinceName" list="provinceSuggestions"
+                       value="@Model.DepartureProvince?.ProvinceName"
+                       class="form-control" required placeholder="Chọn hoặc nhập tỉnh..." autocomplete="off" oninput="autoDetectRegion(this.value)" />
+                <datalist id="provinceSuggestions">
                     @if (provinces != null)
                     {
                         foreach (var p in provinces)
                         {
-                            <option value="@p.ProvinceId" selected="@(Model.DepartureProvinceId == p.ProvinceId)">@p.ProvinceName</option>
+                            <option value="@p.ProvinceName"></option>
                         }
                     }
+                    <option value="Vinh - Nghệ An"></option>
+                    <option value="Buôn Ma Thuột - Đắk Lắk"></option>
+                    <option value="Đà Lạt - Lâm Đồng"></option>
+                    <option value="Nha Trang - Khánh Hòa"></option>
+                    <option value="Phú Quốc - Kiên Giang"></option>
+                    <option value="Sa Pa - Lào Cai"></option>
+                    <option value="Hải Phòng"></option>
+                    <option value="Quy Nhơn - Bình Định"></option>
+                    <option value="Phan Thiết - Bình Thuận"></option>
+                    <option value="Vũng Tàu"></option>
+                    <option value="Côn Đảo"></option>
+                    <option value="Hà Giang"></option>
+                    <option value="Ninh Bình"></option>
+                    <option value="Quảng Bình"></option>
+                </datalist>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fw-bold">Thuộc Vùng Miền *</label>
+                <select id="regionSelect" name="regionName" class="form-select fw-semibold text-primary">
+                    <option value="NORTH" selected="@(currentRegion == "NORTH")">Miền Bắc (NORTH)</option>
+                    <option value="CENTRAL" selected="@(currentRegion == "CENTRAL")">Miền Trung (CENTRAL)</option>
+                    <option value="SOUTH" selected="@(currentRegion == "SOUTH")">Miền Nam (SOUTH)</option>
                 </select>
             </div>
             <div class="col-md-2">
                 <label class="form-label fw-bold">Số ngày *</label>
-                <input type="number" name="durationDays" value="@Model.DurationDays" min="1" class="form-control" required />
+                <input type="number" id="durationDaysInput" name="durationDays" value="@Model.DurationDays" min="1" max="30" class="form-control fw-bold" required oninput="onDurationDaysChanged()" onchange="onDurationDaysChanged()" />
             </div>
             <div class="col-md-2">
                 <label class="form-label fw-bold">Số đêm *</label>
-                <input type="number" name="durationNights" value="@Model.DurationNights" min="0" class="form-control" required />
+                <select id="durationNightsSelect" name="durationNights" class="form-select fw-bold" required>
+                    @{
+                        int minN = Math.Max(0, Model.DurationDays - 1);
+                        int maxN = Model.DurationDays;
+                    }
+                    <option value="@minN" selected="@(Model.DurationNights <= minN)">@minN đêm</option>
+                    <option value="@maxN" selected="@(Model.DurationNights >= maxN)">@maxN đêm</option>
+                </select>
             </div>
             <div class="col-md-2">
-                <label class="form-label fw-bold">Phương tiện *</label>
-                <select name="transport" class="form-select">
+                <label class="form-label fw-bold">Phương tiện (1-2) *</label>
+                <input type="hidden" id="transportHidden" name="transport" value="@Model.Transport" />
+                <div class="border rounded p-2 bg-light d-flex flex-wrap gap-2">
                     @foreach (var tr in new[] { "BUS", "FLIGHT", "TRAIN", "BOAT" })
                     {
-                        <option value="@tr" selected="@(Model.Transport == tr)">@tr</option>
+                        <div class="form-check form-check-inline m-0">
+                            <input class="form-check-input transport-cb" type="checkbox" id="tr-@tr" value="@tr"
+                                   checked="@(selectedTransports.Contains(tr))" onchange="onTransportCheck(this)" />
+                            <label class="form-check-label small fw-semibold" for="tr-@tr">@tr</label>
+                        </div>
                     }
-                </select>
+                </div>
             </div>
 
             <div class="col-md-9">
                 <label class="form-label fw-bold">Tóm tắt ngắn</label>
-                <input type="text" name="summary" value="@Model.Summary" class="form-control" />
+                <input type="text" name="summary" value="@Model.Summary" class="form-control" required />
             </div>
             <div class="col-md-3">
                 <label class="form-label fw-bold">Trạng thái</label>
@@ -86,57 +134,401 @@
 
             <div class="col-12">
                 <label class="form-label fw-bold">Mô tả chi tiết</label>
-                <textarea name="description" rows="3" class="form-control">@Model.Description</textarea>
+                <textarea name="description" rows="2" class="form-control">@Model.Description</textarea>
             </div>
+        </div>
 
-            <div class="col-12 mt-4">
-                <div class="d-flex justify-content-between align-items-center border-bottom pb-2">
-                    <h6 class="fw-bold text-primary mb-0">🖼️ Danh Sách Hình Ảnh Của Tour</h6>
-                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="addImgRow()">
-                        <i class="fa-solid fa-plus me-1"></i> Thêm ảnh mới
-                    </button>
-                </div>
+        <!-- PHẦN 2: QUẢN LÝ HÌNH ẢNH -->
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+            <h6 class="fw-bold text-primary mb-0">2. 🖼️ Danh Sách Hình Ảnh Của Tour</h6>
+            <div>
+                <input type="file" id="multiFilePicker" accept="image/*" multiple class="d-none" onchange="handleFilesSelected(this)" />
+                <input type="file" id="actualUploadFiles" name="newImageFiles" multiple class="d-none" />
+                <button type="button" class="btn btn-sm btn-primary rounded-pill px-3 fw-semibold" onclick="document.getElementById('multiFilePicker').click()">
+                    <i class="fa-solid fa-folder-open me-1"></i> + Thêm ảnh từ máy tính
+                </button>
             </div>
-            <div class="col-12" id="imgListContainer">
-                @foreach (var img in Model.TourImages)
-                {
-                    <div class="row g-2 mb-2 align-items-center">
-                        <div class="col-md-1">
-                            <img src="@img.ImageUrl" class="rounded w-100" style="height: 38px; object-fit: cover;" />
-                        </div>
-                        <div class="col-md-6">
-                            <input type="text" name="imageUrls" value="@img.ImageUrl" class="form-control" required />
+        </div>
+
+        <div id="existingImgContainer">
+            @foreach (var img in Model.TourImages)
+            {
+                <div class="row g-2 mb-2 align-items-center bg-light p-2 rounded-3 border">
+                    <div class="col-md-2 text-center">
+                        <img src="@img.ImageUrl" class="rounded shadow-sm" style="width: 100%; height: 65px; object-fit: cover;" />
+                        <input type="hidden" name="existingImageUrls" value="@img.ImageUrl" />
+                    </div>
+                    <div class="col-md-8">
+                        <label class="small text-muted fw-semibold">Chú thích ảnh:</label>
+                        <input type="text" name="existingImageCaptions" value="@img.Caption" class="form-control form-control-sm" />
+                    </div>
+                    <div class="col-md-2 text-end">
+                        <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="this.closest('.row').remove()">
+                            <i class="fa-solid fa-trash me-1"></i> Xóa ảnh
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+        <div id="newImgPreviewContainer" class="mb-4"></div>
+
+        <!-- PHẦN 3: LỊCH KHỞI HÀNH & GIÁ TOUR -->
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+            <h6 class="fw-bold text-primary mb-0">3. 📅 Lịch Khởi Hành & Giá Tour</h6>
+            <button type="button" class="btn btn-sm btn-success rounded-pill px-3 fw-semibold" onclick="addDepartureRow()">
+                <i class="fa-solid fa-calendar-plus me-1"></i> + Thêm đợt khởi hành
+            </button>
+        </div>
+
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered align-middle mb-0">
+                <thead class="table-light small">
+                    <tr>
+                        <th>Ngày đi *</th>
+                        <th>Ngày về *</th>
+                        <th>Điểm tập trung *</th>
+                        <th>Giá Người lớn (>=13 tuổi)</th>
+                        <th>Giá Trẻ em (<13 tuổi)</th>
+                        <th style="width: 95px;">Tổng chỗ</th>
+                        <th style="width: 130px;">Trạng thái</th>
+                        <th style="width: 50px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="departureTableBody">
+                    @foreach (var dep in Model.TourDepartures.OrderBy(d => d.DepartureDate))
+                    {
+                        string depDateStr = dep.DepartureDate.ToString("yyyy-MM-dd");
+                        string minDepStr = dep.DepartureDate < DateTime.Today ? depDateStr : todayStr;
+                        string minRetStr = dep.DepartureDate.AddDays(1).ToString("yyyy-MM-dd");
+                        string retDateStr = dep.ReturnDate <= dep.DepartureDate ? minRetStr : dep.ReturnDate.ToString("yyyy-MM-dd");
+                        <tr>
+                            <td>
+                                <input type="hidden" name="depIds" value="@dep.DepartureId" />
+                                <input type="date" name="depDates" min="@minDepStr" value="@depDateStr"
+                                       class="form-control form-control-sm dep-date-input" required onchange="syncReturnDate(this)" />
+                            </td>
+                            <td>
+                                <input type="date" name="retDates" min="@minRetStr" value="@retDateStr"
+                                       class="form-control form-control-sm ret-date-input" required />
+                            </td>
+                            <td>
+                                <input type="text" name="meetingPoints" value="@dep.MeetingPoint" class="form-control form-control-sm" required />
+                            </td>
+                            <td>
+                                <input type="number" name="priceAdults" value="@dep.PriceAdult" step="50000" min="0" class="form-control form-control-sm fw-bold text-danger" required />
+                            </td>
+                            <td>
+                                <input type="number" name="priceChilds" value="@dep.PriceChild" step="50000" min="0" class="form-control form-control-sm fw-semibold text-primary" required />
+                            </td>
+                            <td>
+                                <input type="number" name="maxSeatsList" value="@dep.MaxSeats" min="1" max="250" class="form-control form-control-sm text-center" required />
+                                <small class="text-muted d-block text-center" style="font-size: 0.7rem;">Đã đặt: @dep.BookedSeats</small>
+                            </td>
+                            <td>
+                                <select name="depStatuses" class="form-select form-select-sm">
+                                    @foreach (var st in new[] { "OPEN", "FULL", "CLOSED", "COMPLETED", "CANCELLED" })
+                                    {
+                                        <option value="@st" selected="@(dep.Status == st)">@st</option>
+                                    }
+                                </select>
+                            </td>
+                            <td class="text-center">
+                                @if (dep.BookedSeats > 0)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="Đợt này đã có @dep.BookedSeats khách đặt, không thể xóa">
+                                        <i class="fa-solid fa-lock"></i>
+                                    </button>
+                                }
+                                else
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- PHẦN 4: LỊCH TRÌNH CHI TIẾT THEO NGÀY (KHỚP 100% VỚI SỐ NGÀY Ở MỤC 1) -->
+        <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+            <h6 class="fw-bold text-primary mb-0">
+                4. 🗺️ Lịch Trình Chi Tiết Theo Ngày (<span id="itineraryDayCountBadge" class="badge bg-primary">@Model.DurationDays</span> ngày)
+            </h6>
+            <small class="text-muted">Số ngày lịch trình tự động đồng bộ theo "Số ngày" ở mục 1</small>
+        </div>
+
+        <div id="itineraryContainer" class="mb-4">
+            @foreach (var iti in Model.TourItineraries.OrderBy(i => i.DayNo))
+            {
+                <div class="card border shadow-sm rounded-3 p-3 mb-3 bg-light itinerary-item">
+                    <div class="row g-2">
+                        <div class="col-md-2">
+                            <label class="small fw-bold text-primary">Ngày thứ</label>
+                            <input type="number" name="dayNos" value="@iti.DayNo" class="form-control form-control-sm fw-bold bg-white" readonly required />
                         </div>
                         <div class="col-md-4">
-                            <input type="text" name="imageCaptions" value="@img.Caption" class="form-control" placeholder="Chú thích ảnh" />
+                            <label class="small fw-bold">Tiêu đề Ngày @iti.DayNo *</label>
+                            <input type="text" name="itiTitles" value="@iti.Title" class="form-control form-control-sm" required />
                         </div>
-                        <div class="col-md-1">
-                            <button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.row').remove()">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
+                        <div class="col-md-3">
+                            <label class="small fw-bold">Bữa ăn</label>
+                            <input type="text" name="itiMeals" value="@iti.Meals" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-md-3">
+                            <label class="small fw-bold">Nơi lưu trú</label>
+                            <input type="text" name="itiAccommodations" value="@iti.Accommodation" class="form-control form-control-sm" />
+                        </div>
+                        <div class="col-12 mt-2">
+                            <label class="small fw-bold">Nội dung hoạt động chi tiết Ngày @iti.DayNo *</label>
+                            <textarea name="itiContents" rows="2" class="form-control form-control-sm" required>@iti.Content</textarea>
                         </div>
                     </div>
-                }
-            </div>
+                </div>
+            }
+        </div>
 
-            <div class="col-12 text-end mt-4">
-                <a asp-action="Tours" class="btn btn-secondary me-2">Quay lại</a>
-                <button type="submit" class="btn btn-primary fw-bold px-5">Lưu Thay Đổi</button>
-            </div>
+        <div class="text-end border-top pt-3">
+            <a asp-action="Tours" class="btn btn-secondary me-2 px-4">Quay lại</a>
+            <button type="submit" class="btn btn-primary fw-bold px-5 py-2">
+                <i class="fa-solid fa-floppy-disk me-1"></i> Lưu Toàn Bộ Thay Đổi
+            </button>
         </div>
     </form>
 </div>
 
 @section Scripts {
     <script>
-        function addImgRow() {
-            const html = `<div class="row g-2 mb-2 align-items-center">
-                <div class="col-md-1 text-center text-muted"><i class="fa-regular fa-image fs-4"></i></div>
-                <div class="col-md-6"><input type="text" name="imageUrls" class="form-control" placeholder="Dán URL hình ảnh mới" /></div>
-                <div class="col-md-4"><input type="text" name="imageCaptions" class="form-control" placeholder="Chú thích ảnh" /></div>
-                <div class="col-md-1"><button type="button" class="btn btn-outline-danger w-100" onclick="this.closest('.row').remove()"><i class="fa-solid fa-trash"></i></button></div>
-            </div>`;
-            document.getElementById('imgListContainer').insertAdjacentHTML('beforeend', html);
+        const TODAY_STR = "@todayStr";
+        let selectedFilesStore = [];
+
+        const PROVINCE_REGIONS = {
+            @if (provinces != null)
+            {
+                    foreach (var p in provinces)
+                    {
+                            @:"@Html.Raw(p.ProvinceName.ToLower())": "@p.Region",
+                    }
+            }
+            "hà nội": "NORTH", "quảng ninh": "NORTH", "hải phòng": "NORTH", "sa pa - lào cai": "NORTH", "hà giang": "NORTH", "ninh bình": "NORTH",
+            "đà nẵng": "CENTRAL", "huế": "CENTRAL", "khánh hòa": "CENTRAL", "lâm đồng": "CENTRAL", "vinh - nghệ an": "CENTRAL", "buôn ma thuột - đắk lắk": "CENTRAL", "đà lạt - lâm đồng": "CENTRAL", "nha trang - khánh hòa": "CENTRAL", "quy nhơn - bình định": "CENTRAL", "phan thiết - bình thuận": "CENTRAL", "quảng bình": "CENTRAL",
+            "tp. hồ chí minh": "SOUTH", "cần thơ": "SOUTH", "phú quốc - kiên giang": "SOUTH", "vũng tàu": "SOUTH", "côn đảo": "SOUTH"
+        };
+
+        function autoDetectRegion(provName) {
+            if (!provName) return;
+            const key = provName.trim().toLowerCase();
+            if (PROVINCE_REGIONS[key]) {
+                document.getElementById('regionSelect').value = PROVINCE_REGIONS[key];
+            }
         }
+
+        function removeVietnameseTones(str) {
+            return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D');
+        }
+
+        function generateRandomTourCode() {
+            const randomDigits = Math.floor(100 + Math.random() * 900);
+            const nameVal = document.getElementById('tourNameInput').value.trim();
+            let prefix = "";
+            if (nameVal.length > 0) {
+                const words = removeVietnameseTones(nameVal).toUpperCase().replace(/[^A-Z0-9\s]/g, '').split(/\s+/).filter(Boolean);
+                for (let i = 0; i < words.length && prefix.length < 3; i++) {
+                    prefix += words[i][0];
+                }
+            }
+            const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+            while (prefix.length < 3) {
+                prefix += alphabet[Math.floor(Math.random() * alphabet.length)];
+            }
+            document.getElementById('tourCodeInput').value = `${prefix}-${randomDigits}`;
+        }
+
+        // Đồng bộ Số ngày -> Số đêm & Số dòng Lịch trình
+        function onDurationDaysChanged() {
+            const daysInput = document.getElementById('durationDaysInput');
+            let days = parseInt(daysInput.value) || 1;
+            if (days < 1) days = 1;
+            if (days > 30) days = 30;
+            daysInput.value = days;
+
+            const nightsSelect = document.getElementById('durationNightsSelect');
+            const prevNights = parseInt(nightsSelect.value);
+            const minNights = Math.max(0, days - 1);
+            nightsSelect.innerHTML = `
+                <option value="${minNights}" ${prevNights !== days ? 'selected' : ''}>${minNights} đêm</option>
+                <option value="${days}" ${prevNights === days ? 'selected' : ''}>${days} đêm</option>
+            `;
+
+            document.getElementById('itineraryDayCountBadge').innerText = days;
+            const container = document.getElementById('itineraryContainer');
+            const currentItems = container.querySelectorAll('.itinerary-item');
+
+            if (days > currentItems.length) {
+                for (let d = currentItems.length + 1; d <= days; d++) {
+                    const html = `
+                        <div class="card border shadow-sm rounded-3 p-3 mb-3 bg-light itinerary-item">
+                            <div class="row g-2">
+                                <div class="col-md-2">
+                                    <label class="small fw-bold text-primary">Ngày thứ</label>
+                                    <input type="number" name="dayNos" value="${d}" class="form-control form-control-sm fw-bold bg-white" readonly required />
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="small fw-bold">Tiêu đề Ngày ${d} *</label>
+                                    <input type="text" name="itiTitles" placeholder="Nhập tiêu đề hành trình ngày ${d}" class="form-control form-control-sm" required />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="small fw-bold">Bữa ăn</label>
+                                    <input type="text" name="itiMeals" value="Sáng, Trưa, Tối" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="small fw-bold">Nơi lưu trú</label>
+                                    <input type="text" name="itiAccommodations" value="${d === days ? 'Không' : 'Khách sạn 4 sao'}" class="form-control form-control-sm" />
+                                </div>
+                                <div class="col-12 mt-2">
+                                    <label class="small fw-bold">Nội dung hoạt động chi tiết Ngày ${d} *</label>
+                                    <textarea name="itiContents" rows="2" class="form-control form-control-sm" required placeholder="Mô tả lịch trình tham quan ngày ${d}..."></textarea>
+                                </div>
+                            </div>
+                        </div>`;
+                    container.insertAdjacentHTML('beforeend', html);
+                }
+            } else if (days < currentItems.length) {
+                for (let i = currentItems.length - 1; i >= days; i--) {
+                    currentItems[i].remove();
+                }
+            }
+        }
+
+        function onTransportCheck(checkbox) {
+            const checkedBoxes = Array.from(document.querySelectorAll('.transport-cb:checked'));
+            if (checkedBoxes.length > 2) {
+                checkbox.checked = false;
+                alert('Chỉ được chọn tối đa 2 phương tiện di chuyển!');
+                return;
+            }
+            if (checkedBoxes.length === 0) {
+                checkbox.checked = true;
+                return;
+            }
+            document.getElementById('transportHidden').value = checkedBoxes.map(cb => cb.value).join(' + ');
+        }
+
+        function validateTourForm() {
+            const days = parseInt(document.getElementById('durationDaysInput').value) || 1;
+            const itiCount = document.querySelectorAll('#itineraryContainer .itinerary-item').length;
+            if (itiCount !== days) {
+                onDurationDaysChanged();
+                alert(`Số ngày là ${days} nên bắt buộc phải có đủ ${days} ngày lịch trình!`);
+                return false;
+            }
+            return true;
+        }
+
+        function handleFilesSelected(input) {
+            if (!input.files || input.files.length === 0) return;
+
+            for (let i = 0; i < input.files.length; i++) {
+                const file = input.files[i];
+                const fileId = 'img_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+                selectedFilesStore.push({ id: fileId, file: file });
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const rowHtml = `
+                        <div class="row g-2 mb-2 align-items-center bg-primary bg-opacity-10 p-2 rounded-3 border border-primary border-opacity-25" id="${fileId}">
+                            <div class="col-md-2 text-center">
+                                <img src="${e.target.result}" class="rounded shadow-sm" style="width: 100%; height: 65px; object-fit: cover;" />
+                            </div>
+                            <div class="col-md-8">
+                                <label class="small text-primary fw-bold">Ảnh mới chọn (${file.name}) - Nhập chú thích:</label>
+                                <input type="text" name="newImageCaptions" value="${file.name.replace(/\.[^/.]+$/, "")}" class="form-control form-control-sm" />
+                            </div>
+                            <div class="col-md-2 text-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="removeNewSelectedFile('${fileId}')">
+                                    <i class="fa-solid fa-trash me-1"></i> Xóa ảnh
+                                </button>
+                            </div>
+                        </div>`;
+                    document.getElementById('newImgPreviewContainer').insertAdjacentHTML('beforeend', rowHtml);
+                };
+                reader.readAsDataURL(file);
+            }
+
+            syncActualFileInput();
+            input.value = '';
+        }
+
+        function removeNewSelectedFile(fileId) {
+            selectedFilesStore = selectedFilesStore.filter(item => item.id !== fileId);
+            const row = document.getElementById(fileId);
+            if (row) row.remove();
+            syncActualFileInput();
+        }
+
+        function syncActualFileInput() {
+            const dt = new DataTransfer();
+            selectedFilesStore.forEach(item => dt.items.add(item.file));
+            document.getElementById('actualUploadFiles').files = dt.files;
+        }
+
+        function addDaysStr(dateStr, days) {
+            const parts = dateStr.split('-');
+            const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            d.setDate(d.getDate() + days);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function syncReturnDate(depInput) {
+            const tr = depInput.closest('tr');
+            const retInput = tr.querySelector('.ret-date-input');
+            if (!depInput.value) return;
+            const minRetDate = addDaysStr(depInput.value, 1);
+            retInput.min = minRetDate;
+            if (!retInput.value || retInput.value <= depInput.value) {
+                retInput.value = minRetDate;
+            }
+        }
+
+        function addDepartureRow() {
+            const defaultDep = addDaysStr(TODAY_STR, 7);
+            const defaultRet = addDaysStr(TODAY_STR, 9);
+            const minRet = addDaysStr(defaultDep, 1);
+
+            const html = `
+                <tr>
+                    <td>
+                        <input type="hidden" name="depIds" value="0" />
+                        <input type="date" name="depDates" min="${TODAY_STR}" value="${defaultDep}"
+                               class="form-control form-control-sm dep-date-input" required onchange="syncReturnDate(this)" />
+                    </td>
+                    <td>
+                        <input type="date" name="retDates" min="${minRet}" value="${defaultRet}"
+                               class="form-control form-control-sm ret-date-input" required />
+                    </td>
+                    <td><input type="text" name="meetingPoints" placeholder="Nhập điểm tập trung" class="form-control form-control-sm" required /></td>
+                    <td><input type="number" name="priceAdults" value="3500000" step="50000" min="0" class="form-control form-control-sm fw-bold text-danger" required /></td>
+                    <td><input type="number" name="priceChilds" value="2500000" step="50000" min="0" class="form-control form-control-sm fw-semibold text-primary" required /></td>
+                    <td><input type="number" name="maxSeatsList" value="30" min="1" max="250" class="form-control form-control-sm text-center" required /></td>
+                    <td>
+                        <select name="depStatuses" class="form-select form-select-sm">
+                            <option value="OPEN" selected>OPEN</option>
+                            <option value="FULL">FULL</option>
+                            <option value="CLOSED">CLOSED</option>
+                            <option value="COMPLETED">COMPLETED</option>
+                        </select>
+                    </td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="this.closest('tr').remove()"><i class="fa-solid fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            document.getElementById('departureTableBody').insertAdjacentHTML('beforeend', html);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            onDurationDaysChanged();
+        });
     </script>
 }

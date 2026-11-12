@@ -133,12 +133,27 @@
                             <button class="btn btn-light border rounded-pill dropdown-toggle fw-semibold btn-sm px-3" data-bs-toggle="dropdown">
                                 <i class="fa-regular fa-circle-user me-1 text-primary"></i>@User.Identity.Name
                             </button>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                                <li><span class="dropdown-item-text small text-muted">Vai trò: <strong>@User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value</strong></span></li>
-                                <li><hr class="dropdown-divider"></li>
+                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 p-3 rounded-4" style="min-width: 260px;">
+                                <li class="mb-2 border-bottom pb-2">
+                                    <div class="text-uppercase text-muted fw-bold" style="font-size: 0.7rem;">Thông tin cá nhân</div>
+                                    <div class="fw-bold text-dark fs-6 mt-1">
+                                        <i class="fa-solid fa-user text-primary me-2"></i>@User.Identity.Name
+                                    </div>
+                                    <div class="small text-secondary mt-1">
+                                        <i class="fa-solid fa-phone text-success me-2"></i>@(User.FindFirst(System.Security.Claims.ClaimTypes.MobilePhone)?.Value ?? "0901000001")
+                                    </div>
+                                    <div class="small text-secondary mt-1">
+                                        <i class="fa-solid fa-envelope text-danger me-2"></i>@(User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value ?? "admin@tourdemo.vn")
+                                    </div>
+                                    <div class="mt-2">
+                                        <span class="badge bg-primary-subtle text-primary">
+                                            Vai trò: @User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
+                                        </span>
+                                    </div>
+                                </li>
                                 <li>
                                     <form asp-controller="Account" asp-action="Logout" method="post">
-                                        <button type="submit" class="dropdown-item text-danger fw-semibold">
+                                        <button type="submit" class="dropdown-item text-danger fw-semibold rounded-3 px-2 py-1">
                                             <i class="fa-solid fa-right-from-bracket me-2"></i>Đăng xuất
                                         </button>
                                     </form>

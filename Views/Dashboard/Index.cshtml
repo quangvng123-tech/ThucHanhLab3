@@ -5,28 +5,22 @@
 }
 
 <div class="row g-4 mb-4">
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card stat-card bg-primary text-white p-4">
             <small class="text-uppercase opacity-75 fw-bold">Tổng Doanh Thu Thực Thu</small>
-            <h3 class="fw-bolder mt-2 mb-0">@(((decimal)ViewBag.TotalRevenue).ToString("N0")) đ</h3>
+            <h3 class="fw-bolder mt-2 mb-0">@(((decimal)ViewBag.TotalRevenue).ToString("#,##0", System.Globalization.CultureInfo.InvariantCulture)) đ</h3>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card stat-card bg-white p-4">
             <small class="text-uppercase text-muted fw-bold">Tổng Số Đơn Đặt</small>
             <h3 class="fw-bolder text-dark mt-2 mb-0">@ViewBag.TotalBookings đơn</h3>
         </div>
     </div>
-    <div class="col-md-3">
+    <div class="col-md-4">
         <div class="card stat-card bg-warning text-dark p-4">
-            <small class="text-uppercase fw-bold">Đơn Chờ Xác Nhận</small>
+            <small class="text-uppercase fw-bold">Đơn Đặt Chờ Xác Nhận</small>
             <h3 class="fw-bolder mt-2 mb-0">@ViewBag.PendingCount đơn</h3>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card stat-card bg-info text-dark p-4">
-            <small class="text-uppercase fw-bold">Liên Hệ Chưa Xử Lý</small>
-            <h3 class="fw-bolder mt-2 mb-0">@ViewBag.NewContacts liên hệ</h3>
         </div>
     </div>
 </div>
