@@ -1,0 +1,43 @@
+@model TourManagementWeb.Models.Entities.Payment
+@{
+    ViewData["Title"] = "Cổng thanh toán";
+    string methodName = Model.Method switch
+    {
+        "VNPAY" => "Ví/QR VNPay",
+        "MOMO" => "Ví MoMo",
+        _ => "Chuyển khoản ngân hàng"
+    };
+}
+<div class="container py-5" style="max-width: 560px;">
+    <div class="card border-0 shadow rounded-4">
+        <div class="card-body p-4">
+            <div class="alert alert-warning small mb-4">
+                <i class="fa-solid fa-flask me-1"></i>
+                Đây là <strong>cổng thanh toán giả lập</strong> dùng cho demo đồ án, không trừ tiền thật.
+            </div>
+
+            <h4 class="fw-bold mb-3">Xác nhận thanh toán</h4>
+            <table class="table table-borderless mb-3">
+                <tr><td class="text-muted">Mã đơn</td><td class="text-end fw-bold">@Model.Booking.BookingCode</td></tr>
+                <tr><td class="text-muted">Phương thức</td><td class="text-end">@methodName</td></tr>
+                <tr><td class="text-muted">Mã giao dịch</td><td class="text-end small">@Model.TransactionRef</td></tr>
+                <tr class="border-top">
+                    <td class="fw-bold">Số tiền</td>
+                    <td class="text-end fs-4 fw-bold text-primary">@Model.Amount.ToString("N0") đ</td>
+                </tr>
+            </table>
+
+            <form asp-controller="MockPayment" asp-action="Confirm" method="post">
+                <input type="hidden" name="txnRef" value="@Model.TransactionRef" />
+                <div class="d-grid gap-2">
+                    <button type="submit" name="outcome" value="success" class="btn btn-success fw-bold py-2">
+                        <i class="fa-solid fa-circle-check me-1"></i>Thanh toán thành công
+                    </button>
+                    <button type="submit" name="outcome" value="fail" class="btn btn-outline-danger">
+                        <i class="fa-solid fa-circle-xmark me-1"></i>Giả lập thất bại / hủy
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -150,28 +150,7 @@ namespace TourManagementWeb.Controllers
             return View(bookings);
         }
 
-        [HttpPost]
-        public async Task<IActionResult> PayOnline(int bookingId, string method = "VNPAY")
-        {
-            var booking = await _db.Bookings.FirstOrDefaultAsync(b => b.BookingId == bookingId);
-            if (booking == null || booking.PaymentStatus == "PAID") return RedirectToAction(nameof(MyBookings));
-
-            _db.Payments.Add(new Payment
-            {
-                BookingId = booking.BookingId,
-                PaymentType = "PAYMENT",
-                Method = method,
-                Amount = booking.FinalAmount,
-                TransactionRef = $"{method}{DateTime.Now:yyyyMMddHHmmss}",
-                Status = "SUCCESS",
-                PaidAt = DateTime.Now,
-                CreatedAt = DateTime.Now
-            });
-            await _db.SaveChangesAsync();
-
-            TempData["Success"] = $"Thanh toán đơn {booking.BookingCode} thành công!";
-            return RedirectToAction(nameof(MyBookings));
-        }
+        
 
         [HttpPost]
         public async Task<IActionResult> Cancel(int bookingId)

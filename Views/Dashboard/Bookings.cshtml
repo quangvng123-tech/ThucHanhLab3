@@ -79,7 +79,7 @@
 
                             @if (b.PaymentStatus == "UNPAID" && b.Status != "CANCELLED")
                             {
-                                <form asp-action="RecordCashPayment" method="post" class="d-inline">
+                                <form asp-controller="PaymentAdmin" asp-action="CashPayment" method="post" class="d-inline">
                                     <input type="hidden" name="bookingId" value="@b.BookingId" />
                                     <button class="btn btn-sm btn-outline-primary" title="Thu tiền tại quầy">
                                         <i class="fa-solid fa-money-bill-wave"></i> Thu tiền

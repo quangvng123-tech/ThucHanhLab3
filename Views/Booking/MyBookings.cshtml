@@ -46,11 +46,15 @@
                         <div class="col-md-4 text-md-end mt-3 mt-md-0">
                             @if (b.Status != "CANCELLED" && b.PaymentStatus == "UNPAID")
                             {
-                                <form asp-action="PayOnline" method="post" class="d-inline">
+                                <form asp-controller="MockPayment" asp-action="Checkout" method="post" class="d-inline-flex gap-1 align-items-center">
                                     <input type="hidden" name="bookingId" value="@b.BookingId" />
-                                    <input type="hidden" name="method" value="VNPAY" />
+                                    <select name="method" class="form-select form-select-sm" style="width:auto;">
+                                        <option value="BANK">Chuyển khoản</option>
+                                        <option value="VNPAY">VNPay</option>
+                                        <option value="MOMO">MoMo</option>
+                                    </select>
                                     <button type="submit" class="btn btn-primary btn-sm fw-bold rounded-pill px-3">
-                                        <i class="fa-solid fa-credit-card me-1"></i>Thanh toán VNPay
+                                        <i class="fa-solid fa-credit-card me-1"></i>Thanh toán
                                     </button>
                                 </form>
                             }

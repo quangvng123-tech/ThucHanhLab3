@@ -70,28 +70,7 @@ namespace TourManagementWeb.Controllers
             return RedirectToAction(nameof(Bookings));
         }
 
-        [HttpPost]
-        public async Task<IActionResult> RecordCashPayment(int bookingId)
-        {
-            var booking = await _db.Bookings.FindAsync(bookingId);
-            if (booking != null && booking.PaymentStatus == "UNPAID")
-            {
-                _db.Payments.Add(new Payment
-                {
-                    BookingId = bookingId,
-                    PaymentType = "PAYMENT",
-                    Method = "CASH",
-                    Amount = booking.FinalAmount,
-                    TransactionRef = $"CASH-{DateTime.Now:yyyyMMddHHmmss}",
-                    Status = "SUCCESS",
-                    PaidAt = DateTime.Now,
-                    CreatedAt = DateTime.Now
-                });
-                await _db.SaveChangesAsync();
-                TempData["Success"] = $"Đã thu tiền mặt tại quầy cho đơn {booking.BookingCode}.";
-            }
-            return RedirectToAction(nameof(Bookings));
-        }
+        
 
         // =====================================================================
         // 3. QUẢN LÝ TOUR + UPLOAD ẢNH TỪ MÁY TÍNH + LỊCH KHỞI HÀNH + LỊCH TRÌNH CHI TIẾT
