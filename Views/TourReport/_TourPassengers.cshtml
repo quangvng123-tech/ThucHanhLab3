@@ -1,0 +1,61 @@
+@model TourManagementWeb.Models.TourPassengerDetail
+@{
+    string GenderText(string? g) => g switch
+    {
+        "MALE" => "Nam",
+        "FEMALE" => "Nữ",
+        "OTHER" => "Khác",
+        _ => "—"
+    };
+}
+
+<div class="d-flex flex-wrap gap-2 mb-3">
+    <span class="badge bg-primary fs-6">Tổng: @Model.Total người</span>
+    <span class="badge bg-info text-dark fs-6">Người lớn: @Model.Adults</span>
+    <span class="badge bg-secondary fs-6">Trẻ em: @Model.Children</span>
+    <span class="badge bg-success fs-6">Nam: @Model.Male</span>
+    <span class="badge fs-6" style="background:#d63384;">Nữ: @Model.Female</span>
+</div>
+
+@if (Model.Listed < Model.Total)
+{
+    <div class="alert alert-warning small py-2">
+        Có @(Model.Total - Model.Listed) khách chưa có họ tên trong đơn nên chưa hiển thị trong danh sách.
+    </div>
+}
+
+@if (!Model.Departures.Any())
+{
+    <div class="text-center text-muted py-4">Tour này chưa có hành khách.</div>
+}
+
+@foreach (var dep in Model.Departures)
+{
+    <h6 class="fw-bold mt-3 mb-2">
+        <i class="fa-solid fa-calendar-day text-primary me-1"></i>
+        Khởi hành @dep.DepartureDate.ToString("dd/MM/yyyy")
+        <span class="text-muted fw-normal">(@dep.Passengers.Count người)</span>
+    </h6>
+    <table class="table table-sm table-striped align-middle mb-0">
+        <thead class="table-light">
+            <tr>
+                <th style="width:50px;">#</th>
+                <th>Họ và tên</th>
+                <th style="width:110px;">Giới tính</th>
+                <th style="width:110px;">Loại</th>
+            </tr>
+        </thead>
+        <tbody>
+        @{ int i = 1; }
+        @foreach (var p in dep.Passengers)
+        {
+            <tr>
+                <td>@(i++)</td>
+                <td class="fw-semibold">@p.FullName</td>
+                <td>@GenderText(p.Gender)</td>
+                <td>@(p.IsChild ? "Trẻ em" : "Người lớn")</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+}

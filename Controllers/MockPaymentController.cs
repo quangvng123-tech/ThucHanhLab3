@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,8 +8,10 @@ using TourManagementWeb.Models.Entities;
 
 namespace TourManagementWeb.Controllers
 {
-    // Cổng thanh toán GIẢ LẬP dùng cho đồ án / demo.
-    // Luồng giống cổng thật: tạo giao dịch PENDING -> sang trang cổng -> chốt SUCCESS/FAILED.
+    // Thanh toán cho khách: chỉ có 2 hình thức
+    //   BANK = chuyển khoản (qua trang thanh toán)
+    //   CASH = tiền mặt tại quầy (nhân viên bấm "Thu tiền" trong trang quản trị)
+    // Sau khi thanh toán xong, đơn vẫn PENDING + PAID; chỉ khi admin bấm "Duyệt đơn" mới thành CONFIRMED.
     [Authorize]
     public class MockPaymentController : Controller
     {
@@ -18,7 +20,6 @@ namespace TourManagementWeb.Controllers
 
         private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
-        // Bước 1: khách bấm "Thanh toán" -> tạo giao dịch PENDING -> chuyển sang trang cổng
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Checkout(int bookingId, string method = "BANK")
         {
@@ -26,7 +27,13 @@ namespace TourManagementWeb.Controllers
                                   .FirstOrDefaultAsync(b => b.BookingId == bookingId);
             if (booking == null || booking.Customer.UserId != CurrentUserId) return Forbid();
 
-            if (method != "VNPAY" && method != "MOMO" && method != "BANK") method = "BANK";
+            // Tiền mặt: không qua trang thanh toán, khách ra quầy trả tiền, nhân viên bấm "Thu tiền"
+            if (method == "CASH")
+            {
+                TempData["Success"] = $"Đơn {booking.BookingCode}: bạn đã chọn thanh toán tiền mặt. " +
+                                      "Vui lòng đến quầy để thanh toán, nhân viên sẽ thu tiền và xác nhận đơn cho bạn.";
+                return RedirectToAction("MyBookings", "Booking");
+            }
 
             try
             {
@@ -37,7 +44,7 @@ namespace TourManagementWeb.Controllers
                 await _db.Database.ExecuteSqlRawAsync(
                     "BEGIN SP_INIT_PAYMENT(:p_booking_id, :p_method, :p_payment_id, :p_txn_ref, :p_amount); END;",
                     new OracleParameter("p_booking_id", OracleDbType.Int32) { Value = bookingId },
-                    new OracleParameter("p_method", OracleDbType.Varchar2) { Value = method },
+                    new OracleParameter("p_method", OracleDbType.Varchar2) { Value = "BANK" },
                     pId, pRef, pAmt);
 
                 return RedirectToAction(nameof(Gateway), new { txnRef = pRef.Value.ToString() });
@@ -49,7 +56,6 @@ namespace TourManagementWeb.Controllers
             }
         }
 
-        // Bước 2: trang "cổng thanh toán"
         [HttpGet]
         public async Task<IActionResult> Gateway(string txnRef)
         {
@@ -62,7 +68,7 @@ namespace TourManagementWeb.Controllers
             return View(p);
         }
 
-        // Bước 3: khách chọn kết quả -> chốt giao dịch
+        // outcome = "pay" (Thanh toán) hoặc "cancel" (Hủy)
         [HttpPost, ValidateAntiForgeryToken]
         public async Task<IActionResult> Confirm(string txnRef, string outcome)
         {
@@ -73,7 +79,7 @@ namespace TourManagementWeb.Controllers
                 return RedirectToAction("MyBookings", "Booking");
             }
 
-            bool ok = outcome == "success";
+            bool ok = outcome == "pay";
             try
             {
                 await _db.Database.ExecuteSqlRawAsync(
@@ -83,15 +89,14 @@ namespace TourManagementWeb.Controllers
                     new OracleParameter("p_paid_amount", OracleDbType.Decimal) { Value = p.Amount },
                     new OracleParameter("p_booking_id", OracleDbType.Decimal) { Direction = ParameterDirection.Output });
 
-                if (ok) TempData["Success"] = $"Thanh toán đơn {p.Booking.BookingCode} thành công!";
-                else TempData["Error"] = "Thanh toán không thành công hoặc đã bị hủy.";
+                if (ok) TempData["Success"] = $"Thanh toán đơn {p.Booking.BookingCode} thành công! Vui lòng chờ nhân viên xác nhận đơn.";
+                else TempData["Error"] = $"Bạn đã hủy giao dịch. Đơn {p.Booking.BookingCode} chưa được thanh toán.";
             }
             catch (OracleException ex) { TempData["Error"] = ex.Message; }
 
             return RedirectToAction("MyBookings", "Booking");
         }
 
-        // Chỉ cho phép thao tác giao dịch PENDING thuộc về chính người đang đăng nhập
         private Task<Payment?> FindOwnPending(string txnRef)
         {
             int uid = CurrentUserId;

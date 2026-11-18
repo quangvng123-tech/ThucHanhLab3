@@ -42,6 +42,7 @@
                     <th class="text-center">Đã hủy</th>
                     <th class="text-center">Tổng hành khách</th>
                     <th class="text-end">Doanh thu (PAID)</th>
+                    <th class="text-center">Hành khách</th>
                 </tr>
             </thead>
             <tbody>
@@ -56,9 +57,48 @@
                         <td class="text-center"><span class="badge bg-secondary">@item.CancelledBookings</span></td>
                         <td class="text-center fw-bold">@item.TotalPassengers khách</td>
                         <td class="text-end fw-bold text-danger">@((item.Revenue ?? 0).ToString("N0")) đ</td>
+                        <td class="text-center">
+                            <button type="button" class="btn btn-sm btn-outline-primary btn-tour-pax"
+                                    data-bs-toggle="modal" data-bs-target="#paxModal"
+                                    data-name="@item.TourName"
+                                    data-url="@Url.Action("Passengers", "TourReport", new { tourId = item.TourId })">
+                                <i class="fa-solid fa-users me-1"></i>Chi tiết
+                            </button>
+                        </td>
                     </tr>
                 }
             </tbody>
         </table>
     </div>
 </div>
+
+<div class="modal fade" id="paxModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title fw-bold"><i class="fa-solid fa-users text-primary me-2"></i><span id="paxModalTitle"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body" id="paxModalBody"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var body = document.getElementById('paxModalBody');
+        var title = document.getElementById('paxModalTitle');
+        document.querySelectorAll('.btn-tour-pax').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                title.textContent = btn.dataset.name;
+                body.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary"></div></div>';
+                fetch(btn.dataset.url, { credentials: 'same-origin' })
+                    .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+                    .then(function (html) { body.innerHTML = html; })
+                    .catch(function () {
+                        body.innerHTML = '<div class="alert alert-danger">Không tải được danh sách hành khách.</div>';
+                    });
+            });
+        });
+    });
+</script>

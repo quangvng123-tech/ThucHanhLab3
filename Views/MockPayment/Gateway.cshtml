@@ -1,41 +1,63 @@
 @model TourManagementWeb.Models.Entities.Payment
 @{
     ViewData["Title"] = "Cổng thanh toán";
-    string methodName = Model.Method switch
-    {
-        "VNPAY" => "Ví/QR VNPay",
-        "MOMO" => "Ví MoMo",
-        _ => "Chuyển khoản ngân hàng"
-    };
+
+    // ===== Thông tin tài khoản nhận tiền =====
+    const string BankId = "TPB";                        // mã ngân hàng theo VietQR (chỉ dùng khi UseStaticQr = false)
+    const string BankName = "TPBank";
+    const string AccountNo = "10003005360";
+    const string AccountName = "TRAN PHUONG HAO";
+    // true  : hiển thị ảnh QR có sẵn (wwwroot/images/qr-tpbank.png), khách tự nhập số tiền + nội dung
+    // false : tự sinh QR VietQR đã điền sẵn số tiền + nội dung (cần internet)
+    const bool UseStaticQr = false;
+    // =========================================
+
+    string content = Model.Booking.BookingCode;         // nội dung chuyển khoản = mã đơn
+    string qrSrc = UseStaticQr
+        ? Url.Content("~/images/qr-tpbank.png")
+        : $"https://img.vietqr.io/image/{BankId}-{AccountNo}-compact2.png"
+          + $"?amount={(long)Model.Amount}&addInfo={Uri.EscapeDataString(content)}"
+          + $"&accountName={Uri.EscapeDataString(AccountName)}";
 }
-<div class="container py-5" style="max-width: 560px;">
+<div class="container py-5" style="max-width: 820px;">
     <div class="card border-0 shadow rounded-4">
-        <div class="card-body p-4">
-            <div class="alert alert-warning small mb-4">
-                <i class="fa-solid fa-flask me-1"></i>
-                Đây là <strong>cổng thanh toán giả lập</strong> dùng cho demo đồ án, không trừ tiền thật.
+        <div class="card-body p-4 p-md-5">
+            <h4 class="fw-bold mb-1"><i class="fa-solid fa-building-columns text-primary me-2"></i>Thanh toán chuyển khoản</h4>
+            <p class="text-muted mb-4">Đơn <strong>@Model.Booking.BookingCode</strong> · Mã giao dịch <span class="small">@Model.TransactionRef</span></p>
+
+            <div class="row g-4 align-items-center">
+                <div class="col-md-5 text-center">
+                    <img src="@qrSrc" alt="Mã QR chuyển khoản" class="img-fluid rounded-3 border"
+                         style="max-width: 280px;" onerror="this.style.display='none'" />
+                    <div class="small text-muted mt-2">
+                        @(UseStaticQr ? "Quét mã bằng ứng dụng ngân hàng, sau đó nhập đúng số tiền và nội dung chuyển khoản" : "Quét mã bằng ứng dụng ngân hàng")
+                    </div>
+                </div>
+                <div class="col-md-7">
+                    <table class="table table-borderless mb-0">
+                        <tr><td class="text-muted">Ngân hàng</td><td class="text-end fw-bold">@BankName</td></tr>
+                        <tr><td class="text-muted">Số tài khoản</td><td class="text-end fw-bold">@AccountNo</td></tr>
+                        <tr><td class="text-muted">Chủ tài khoản</td><td class="text-end fw-bold">@AccountName</td></tr>
+                        <tr><td class="text-muted">Nội dung chuyển khoản</td><td class="text-end fw-bold text-danger">@content</td></tr>
+                        <tr class="border-top">
+                            <td class="fw-bold align-middle">Số tiền</td>
+                            <td class="text-end fs-4 fw-bold text-primary">@Model.Amount.ToString("N0") đ</td>
+                        </tr>
+                    </table>
+                </div>
             </div>
 
-            <h4 class="fw-bold mb-3">Xác nhận thanh toán</h4>
-            <table class="table table-borderless mb-3">
-                <tr><td class="text-muted">Mã đơn</td><td class="text-end fw-bold">@Model.Booking.BookingCode</td></tr>
-                <tr><td class="text-muted">Phương thức</td><td class="text-end">@methodName</td></tr>
-                <tr><td class="text-muted">Mã giao dịch</td><td class="text-end small">@Model.TransactionRef</td></tr>
-                <tr class="border-top">
-                    <td class="fw-bold">Số tiền</td>
-                    <td class="text-end fs-4 fw-bold text-primary">@Model.Amount.ToString("N0") đ</td>
-                </tr>
-            </table>
+            <div class="alert alert-info small mt-4 mb-4">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                Vui lòng chuyển đúng số tiền và nội dung. Sau khi chuyển khoản xong, nhấn <strong>Thanh toán</strong> để hoàn tất.
+                Nhân viên sẽ kiểm tra và xác nhận đơn của bạn.
+            </div>
 
             <form asp-controller="MockPayment" asp-action="Confirm" method="post">
                 <input type="hidden" name="txnRef" value="@Model.TransactionRef" />
-                <div class="d-grid gap-2">
-                    <button type="submit" name="outcome" value="success" class="btn btn-success fw-bold py-2">
-                        <i class="fa-solid fa-circle-check me-1"></i>Thanh toán thành công
-                    </button>
-                    <button type="submit" name="outcome" value="fail" class="btn btn-outline-danger">
-                        <i class="fa-solid fa-circle-xmark me-1"></i>Giả lập thất bại / hủy
-                    </button>
+                <div class="d-flex gap-2">
+                    <button type="submit" name="outcome" value="pay" class="btn btn-success fw-bold py-2 flex-grow-1">Thanh toán</button>
+                    <button type="submit" name="outcome" value="cancel" class="btn btn-outline-secondary py-2 px-4">Hủy</button>
                 </div>
             </form>
         </div>
