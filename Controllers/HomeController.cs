@@ -15,6 +15,18 @@ namespace TourManagementWeb.Controllers
             _db = db;
         }
 
+        // Danh sách TourId mà khách đang đăng nhập đã bấm yêu thích (khách vãng lai: rỗng)
+        private async Task<HashSet<int>> GetFavoriteTourIdsAsync()
+        {
+            if (User.Identity == null || !User.Identity.IsAuthenticated) return new HashSet<int>();
+            int userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var ids = await _db.FavoriteTours
+                .Where(f => f.Customer.UserId == userId)
+                .Select(f => f.TourId)
+                .ToListAsync();
+            return ids.ToHashSet();
+        }
+
         // UC05 + UC07 + UC32: Danh sách tour từ V_TOUR_LIST
         public async Task<IActionResult> Index(int? provinceId, decimal? maxPrice, DateTime? departureDate, string? keyword)
         {
@@ -75,6 +87,8 @@ namespace TourManagementWeb.Controllers
             ViewBag.DepartureDate = departureDate?.ToString("yyyy-MM-dd");
             ViewBag.Keyword = keyword;
 
+            ViewBag.FavoriteIds = await GetFavoriteTourIdsAsync();
+
             return View(tourList.OrderBy(t => t.NextDeparture).ToList());
         }
 
@@ -106,6 +120,7 @@ namespace TourManagementWeb.Controllers
             }
 
             ViewBag.MyReview = myReview;
+            ViewBag.IsFavorite = (await GetFavoriteTourIdsAsync()).Contains(id);
             return View(tour);
         }
 

@@ -1,0 +1,86 @@
+@using System.Globalization
+@model IEnumerable<TourManagementWeb.Models.Entities.VTourList>
+@{
+    ViewData["Title"] = "Tour yêu thích";
+    var primaryImages = ViewBag.PrimaryImages as Dictionary<decimal, string>;
+
+    string FormatMoney(decimal? amount) => amount.HasValue
+        ? amount.Value.ToString("#,##0", CultureInfo.InvariantCulture) + " đ"
+        : "Liên hệ";
+
+    string GetTourImage(decimal tourId, string code)
+    {
+        if (primaryImages != null && primaryImages.TryGetValue(tourId, out var dbUrl) && !string.IsNullOrWhiteSpace(dbUrl))
+        {
+            if (dbUrl.StartsWith("http") || dbUrl.StartsWith("/images/tours/")) return dbUrl;
+        }
+        return code switch
+        {
+            "HLG-3N2D" => "https://images.unsplash.com/photo-1528127269322-539801943592?w=800&q=80",
+            "DNG-4N3D" => "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=800&q=80",
+            "HUE-3N2D" => "https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=800&q=80",
+            "NTR-3N2D" => "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800&q=80",
+            "DLT-3N2D" => "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800&q=80",
+            _ => "https://images.unsplash.com/photo-1552465011-b4e21bf6e79a?w=800&q=80"
+        };
+    }
+}
+
+<div class="container py-5">
+    <div class="mb-4">
+        <h3 class="fw-bold mb-1"><i class="fa-solid fa-heart text-danger me-2"></i>Tour yêu thích của tôi</h3>
+        <p class="text-muted small mb-0">Bạn có <span id="favCount">@Model.Count()</span> tour trong danh sách yêu thích</p>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-12" id="favEmpty" hidden="@(Model.Any() ? "hidden" : null)">
+            <div class="card border-0 shadow-sm rounded-4 p-5 text-center">
+                <i class="fa-regular fa-heart fs-1 text-muted mb-3"></i>
+                <h5 class="fw-bold">Bạn chưa có tour yêu thích nào</h5>
+                <p class="text-muted small mb-3">Bấm vào biểu tượng trái tim trên mỗi tour để lưu lại và xem sau.</p>
+                <div><a asp-controller="Home" asp-action="Index" class="btn btn-primary rounded-pill px-4">Khám phá tour</a></div>
+            </div>
+        </div>
+
+        @foreach (var item in Model)
+        {
+            <div class="col-lg-4 col-md-6" data-fav-card>
+                <div class="tour-card h-100 d-flex flex-column">
+                    <div class="position-relative">
+                        <a asp-controller="Home" asp-action="Details" asp-route-id="@item.TourId" class="tour-img-wrapper d-block">
+                            <img src="@GetTourImage(item.TourId, item.TourCode)" alt="@item.TourName" />
+                            <span class="badge-category"><i class="fa-solid fa-tag me-1 text-info"></i>@item.CategoryName</span>
+                            <span class="badge-rating">★ @item.AvgRating <span class="text-muted fw-normal">(@item.ReviewCount)</span></span>
+                        </a>
+                        <button type="button" class="btn-fav active" data-tour-id="@((int)item.TourId)" title="Bỏ yêu thích">
+                            <i class="fa-solid fa-heart"></i>
+                        </button>
+                    </div>
+                    <div class="card-body p-4 d-flex flex-column flex-grow-1">
+                        <div class="d-flex justify-content-between text-muted small mb-2">
+                            <span><i class="fa-solid fa-barcode me-1"></i>@item.TourCode</span>
+                            <span><i class="fa-regular fa-clock me-1 text-primary"></i>@item.DurationDays ngày @item.DurationNights đêm</span>
+                        </div>
+                        <h5 class="fw-bold text-dark mb-3">
+                            <a asp-controller="Home" asp-action="Details" asp-route-id="@item.TourId" class="text-decoration-none text-dark">@item.TourName</a>
+                        </h5>
+                        <div class="small text-secondary mb-3">
+                            <div class="mb-1"><i class="fa-solid fa-plane-departure text-primary me-2"></i>Khởi hành từ: <strong>@item.DepartureFrom</strong></div>
+                            <div class="mb-1"><i class="fa-solid fa-bus text-success me-2"></i>Phương tiện: <strong>@item.Transport</strong></div>
+                            <div><i class="fa-regular fa-calendar-check text-warning me-2"></i>Đợt gần nhất: <strong>@(item.NextDeparture.HasValue ? item.NextDeparture.Value.ToString("dd/MM/yyyy") : "Liên hệ")</strong></div>
+                        </div>
+                        <div class="mt-auto pt-3 border-top d-flex justify-content-between align-items-center">
+                            <div>
+                                <span class="text-muted small d-block">Giá người lớn từ</span>
+                                <span class="fs-5 fw-bolder text-danger">@FormatMoney(item.MinPrice)</span>
+                            </div>
+                            <a asp-controller="Home" asp-action="Details" asp-route-id="@item.TourId" class="btn btn-primary rounded-pill px-3 fw-semibold btn-sm">
+                                Chi tiết <i class="fa-solid fa-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

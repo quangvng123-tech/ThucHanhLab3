@@ -87,6 +87,49 @@
             box-shadow: 0 2px 6px rgba(0,0,0,0.15);
         }
 
+        /* Nút yêu thích (trái tim) */
+        .btn-fav {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 5;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: transform 0.15s ease, color 0.15s ease;
+        }
+
+            .btn-fav:hover {
+                transform: scale(1.12);
+                color: #ef4444;
+            }
+
+            .btn-fav.active {
+                color: #ef4444;
+            }
+
+            .btn-fav i {
+                pointer-events: none;
+            }
+
+        .btn-fav-inline {
+            position: static;
+            flex-shrink: 0;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            box-shadow: none;
+        }
+
         footer {
             background: #0f172a;
             color: #94a3b8;
@@ -150,6 +193,11 @@
                                             Vai trò: @User.FindFirst(System.Security.Claims.ClaimTypes.Role)?.Value
                                         </span>
                                     </div>
+                                </li>
+                                <li class="mb-1">
+                                    <a asp-controller="Favorite" asp-action="Index" class="dropdown-item fw-semibold rounded-3 px-2 py-1">
+                                        <i class="fa-solid fa-heart text-danger me-2"></i>Tour yêu thích
+                                    </a>
                                 </li>
                                 <li>
                                     <form asp-controller="Account" asp-action="Logout" method="post">
@@ -215,6 +263,8 @@
                 <div class="col-md-4">
                     <h6 class="text-white fw-bold mb-3">Phương thức thanh toán</h6>
                     <div class="d-flex gap-2">
+                        <span class="badge bg-primary px-3 py-2">VNPay</span>
+                        <span class="badge bg-danger px-3 py-2">MoMo</span>
                         <span class="badge bg-success px-3 py-2">Tiền mặt / Chuyển khoản</span>
                     </div>
                 </div>
@@ -227,6 +277,76 @@
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    @if (User.Identity != null && User.Identity.IsAuthenticated)
+    {
+        <span id="fav-csrf" hidden>@Html.AntiForgeryToken()</span>
+    }
+    <script>
+        // Nút yêu thích dùng chung cho trang chủ, trang chi tiết và trang "Tour yêu thích"
+        (function () {
+            var isAuth = @(User.Identity != null && User.Identity.IsAuthenticated ? "true" : "false");
+            var toggleUrl = '@Url.Action("Toggle", "Favorite")';
+            var loginUrl = '@Url.Action("Login", "Account")';
+
+            function setState(btn, on) {
+                btn.classList.toggle('active', on);
+                var icon = btn.querySelector('i');
+                if (icon) {
+                    icon.classList.toggle('fa-solid', on);
+                    icon.classList.toggle('fa-regular', !on);
+                }
+                btn.title = on ? 'Bỏ yêu thích' : 'Thêm vào yêu thích';
+            }
+
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('.btn-fav');
+                if (!btn) return;
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (!isAuth) {
+                    window.location.href = loginUrl + '?returnUrl=' +
+                        encodeURIComponent(window.location.pathname + window.location.search);
+                    return;
+                }
+                if (btn.dataset.busy) return;
+                btn.dataset.busy = '1';
+
+                var tourId = btn.dataset.tourId;
+                var tokenInput = document.querySelector('#fav-csrf input[name="__RequestVerificationToken"]');
+
+                fetch(toggleUrl, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': tokenInput ? tokenInput.value : ''
+                    },
+                    body: 'tourId=' + encodeURIComponent(tourId)
+                })
+                .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+                .then(function (data) {
+                    // Đồng bộ mọi nút tim của cùng tour trên trang
+                    document.querySelectorAll('.btn-fav[data-tour-id="' + tourId + '"]').forEach(function (b) {
+                        setState(b, data.favorited);
+                    });
+
+                    // Trang "Tour yêu thích": bỏ tim thì gỡ thẻ tour khỏi danh sách
+                    var card = btn.closest('[data-fav-card]');
+                    if (card && !data.favorited) {
+                        card.remove();
+                        var left = document.querySelectorAll('[data-fav-card]').length;
+                        var countEl = document.getElementById('favCount');
+                        if (countEl) countEl.textContent = left;
+                        var empty = document.getElementById('favEmpty');
+                        if (empty && left === 0) empty.removeAttribute('hidden');
+                    }
+                })
+                .catch(function () { alert('Không thể cập nhật yêu thích. Vui lòng thử lại.'); })
+                .finally(function () { delete btn.dataset.busy; });
+            });
+        })();
+    </script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
